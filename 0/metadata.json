@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2V2PHYH96006XNHJTQSY6P1",
+  "session_id": "01a0b5e1-b180-7e33-b556-abcc5b182c75",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-18T20:18:05.75439Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "supabase/migrations/20260918201800_broadcast_room_updates.sql"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "5afd5c62923c",
+  "checkpoint_transcript_start": 1618,
+  "transcript_lines_at_start": 1618,
+  "compact_transcript_start": 212,
+  "token_usage": {
+    "input_tokens": 43003,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 6319744,
+    "output_tokens": 12011,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-18T20:18:05.583768Z",
+    "agent_lines": 26,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 26,
+    "total_lines_changed": 26,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
