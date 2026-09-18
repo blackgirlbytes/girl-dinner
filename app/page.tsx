@@ -330,7 +330,25 @@ export default function Home() {
 
   const selectedPlate = useMemo(() => {
     const seed = cravings.join("").length + dietary.join("").length + partySize;
-    return PLATES[seed % PLATES.length];
+    const plate = PLATES[seed % PLATES.length];
+    const isVegan = dietary.includes("vegan");
+    const isDairyFree = dietary.includes("dairy-free") || isVegan;
+    const isGlutenFree = dietary.includes("gluten-free");
+
+    const items = plate.items.map((item) => {
+      let compatibleItem = item;
+      if (isVegan && item === "jammy eggs") compatibleItem = "marinated tofu";
+      if (isVegan && item === "cheese or marinated tofu") compatibleItem = "marinated tofu";
+      if (isDairyFree && item === "buttered toast") compatibleItem = "olive oil toast";
+      if (isGlutenFree && item === "warm pita") compatibleItem = "gluten-free crackers";
+      if (isGlutenFree && item === "crackers") compatibleItem = "gluten-free crackers";
+      if (isGlutenFree && (item === "buttered toast" || item === "olive oil toast")) {
+        compatibleItem = "gluten-free toast";
+      }
+      return compatibleItem;
+    });
+
+    return { ...plate, items };
   }, [cravings, dietary, partySize]);
 
   return (
