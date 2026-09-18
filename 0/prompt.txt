@@ -1,0 +1,13 @@
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://console.typesafe.ai/login?returnTo=%2Fsettings%2Fkeys
+</in-app-browser-context>
+
+## My request:
+open that file for me please thank you
+
+---
+
+okay api key is in there..only thing i want you to do is add to the agents.md this rule..it already says always make a commit on every file change..but we need it to make a commit and push on every file change.
