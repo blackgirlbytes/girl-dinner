@@ -4,7 +4,8 @@ import { FormEvent, PointerEvent, useCallback, useEffect, useMemo, useState } fr
 
 type Location = { latitude: number; longitude: number };
 type Vote = "pass" | "interested" | "love";
-type Screen = "setup" | "deck" | "result" | "fallback";
+type DeviceMode = "shared" | "remote";
+type Screen = "setup" | "lobby" | "deck" | "waiting" | "result" | "fallback";
 
 type Restaurant = {
   id: string;
@@ -30,6 +31,25 @@ type ResponseMeta = {
   scoring: "jev" | "local";
   notices: string[];
   dietaryNotice: string;
+};
+
+type PublicDinnerRoom = {
+  code: string;
+  createdAt: number;
+  expiresAt: number;
+  status: "voting" | "complete";
+  participants: Array<{
+    slot: number;
+    name: string;
+    joined: boolean;
+    completed: boolean;
+  }>;
+  restaurants: Restaurant[];
+  preferences: { cravings: string[]; dietary: string[] };
+  meta: ResponseMeta;
+  resultRestaurantId: string | null;
+  resultSupport: number;
+  fallback: boolean;
 };
 
 const CRAVING_OPTIONS = [
@@ -112,6 +132,8 @@ export default function Home() {
   const [budget, setBudget] = useState(2);
   const [vibe, setVibe] = useState(VIBES[0].value);
   const [service, setService] = useState("either");
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("shared");
+  const [joinCode, setJoinCode] = useState("");
   const [customCraving, setCustomCraving] = useState("");
   const [location, setLocation] = useState<Location | null>(null);
   const [locationStatus, setLocationStatus] = useState("Not shared");
@@ -126,6 +148,13 @@ export default function Home() {
   const [winnerSupport, setWinnerSupport] = useState(0);
   const [handoff, setHandoff] = useState(false);
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
+  const [roomCode, setRoomCode] = useState("");
+  const [room, setRoom] = useState<PublicDinnerRoom | null>(null);
+  const [participantId, setParticipantId] = useState("");
+  const [participantSlot, setParticipantSlot] = useState<number | null>(null);
+  const [participantName, setParticipantName] = useState("");
+  const [copyStatus, setCopyStatus] = useState("Copy invite link");
+  const [voteSubmitting, setVoteSubmitting] = useState(false);
 
   const participantNames = useMemo(
     () => names.slice(0, partySize).map((name, index) => name.trim() || (index === 0 ? "You" : `Friend ${index + 1}`)),
@@ -133,8 +162,87 @@ export default function Home() {
   );
 
   const currentRestaurant = restaurants[cardIndex];
-  const currentPerson = participantNames[participantIndex] ?? "You";
+  const currentPerson =
+    deviceMode === "remote" && participantName
+      ? participantName
+      : participantNames[participantIndex] ?? "You";
   const progress = restaurants.length ? ((cardIndex + 1) / restaurants.length) * 100 : 0;
+
+  const applyRemoteRoom = useCallback((nextRoom: PublicDinnerRoom) => {
+    setRoom(nextRoom);
+    setRoomCode(nextRoom.code);
+    setRestaurants(nextRoom.restaurants);
+    setMeta(nextRoom.meta);
+    setPartySize(nextRoom.participants.length);
+    setNames(nextRoom.participants.map((participant) => participant.name));
+    setCravings(nextRoom.preferences.cravings);
+    setDietary(nextRoom.preferences.dietary);
+
+    if (nextRoom.status === "complete") {
+      const selected = nextRoom.restaurants.find(
+        (restaurant) => restaurant.id === nextRoom.resultRestaurantId,
+      );
+      if (selected) {
+        setWinner(selected);
+        setWinnerSupport(nextRoom.resultSupport);
+        setScreen("result");
+      } else {
+        setScreen("fallback");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase();
+    if (!code) return;
+
+    let cancelled = false;
+    async function loadRoom() {
+      try {
+        const response = await fetch(`/api/rooms/${code}`, { cache: "no-store" });
+        const data = (await response.json()) as { room?: PublicDinnerRoom; error?: string };
+        if (!response.ok || !data.room) throw new Error(data.error ?? "Room not found.");
+        if (cancelled) return;
+
+        setDeviceMode("remote");
+        applyRemoteRoom(data.room);
+        const saved = window.localStorage.getItem(`girl-dinner-room-${code}`);
+        if (saved) {
+          const identity = JSON.parse(saved) as { participantId?: string; name?: string; slot?: number };
+          setParticipantId(identity.participantId ?? "");
+          setParticipantName(identity.name ?? "");
+          setParticipantSlot(typeof identity.slot === "number" ? identity.slot : null);
+        }
+        if (data.room.status !== "complete") setScreen("lobby");
+      } catch (caught) {
+        if (cancelled) return;
+        setError(caught instanceof Error ? caught.message : "Room not found.");
+        setScreen("setup");
+      }
+    }
+
+    void loadRoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyRemoteRoom]);
+
+  useEffect(() => {
+    if (!roomCode || room?.status === "complete") return;
+
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as { room?: PublicDinnerRoom };
+        if (data.room) applyRemoteRoom(data.room);
+      } catch {
+        // A later poll will retry while the room is active.
+      }
+    }, 2000);
+
+    return () => window.clearInterval(interval);
+  }, [applyRemoteRoom, room?.status, roomCode]);
 
   function updatePartySize(nextSize: number) {
     setPartySize(nextSize);
@@ -152,6 +260,15 @@ export default function Home() {
     if (!value) return;
     setCravings((current) => (current.includes(value) ? current : [...current, value]));
     setCustomCraving("");
+  }
+
+  function openRoomFromCode() {
+    const code = joinCode.replace(/[^a-z0-9]/gi, "").toUpperCase();
+    if (code.length !== 6) {
+      setError("Enter the six-character room code.");
+      return;
+    }
+    window.location.assign(`/?room=${code}`);
   }
 
   function requestLocation() {
@@ -208,18 +325,116 @@ export default function Home() {
         return;
       }
 
+      const responseMeta = data.meta ?? {
+        source: "sample" as const,
+        scoring: "local" as const,
+        notices: [],
+        dietaryNotice: "Dietary and allergen details must be confirmed directly with the restaurant.",
+      };
       setRestaurants(data.restaurants);
-      setMeta(data.meta ?? null);
+      setMeta(responseMeta);
       setVotes({});
       setCardIndex(0);
       setParticipantIndex(0);
       setWinner(null);
-      setScreen("deck");
+
+      if (partySize > 1 && deviceMode === "remote") {
+        const roomResponse = await fetch("/api/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            names: participantNames,
+            restaurants: data.restaurants,
+            cravings,
+            dietary,
+            meta: responseMeta,
+          }),
+        });
+        const roomData = (await roomResponse.json()) as {
+          room?: PublicDinnerRoom;
+          participantId?: string;
+          error?: string;
+        };
+        if (!roomResponse.ok || !roomData.room || !roomData.participantId) {
+          throw new Error(roomData.error ?? "The room could not be created.");
+        }
+
+        const hostIdentity = {
+          participantId: roomData.participantId,
+          name: participantNames[0],
+          slot: 0,
+        };
+        window.localStorage.setItem(
+          `girl-dinner-room-${roomData.room.code}`,
+          JSON.stringify(hostIdentity),
+        );
+        window.history.replaceState({}, "", `/?room=${roomData.room.code}`);
+        setParticipantId(hostIdentity.participantId);
+        setParticipantName(hostIdentity.name);
+        setParticipantSlot(0);
+        applyRemoteRoom(roomData.room);
+        setScreen("lobby");
+      } else {
+        setScreen("deck");
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Dinner search failed.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function joinRemoteRoom(slot: number) {
+    if (!roomCode) return;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/rooms/${roomCode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", slot }),
+      });
+      const data = (await response.json()) as {
+        room?: PublicDinnerRoom;
+        participantId?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.room || !data.participantId) {
+        throw new Error(data.error ?? "Could not join the room.");
+      }
+
+      const name = data.room.participants[slot]?.name ?? "Guest";
+      const identity = { participantId: data.participantId, name, slot };
+      window.localStorage.setItem(`girl-dinner-room-${roomCode}`, JSON.stringify(identity));
+      setParticipantId(identity.participantId);
+      setParticipantName(identity.name);
+      setParticipantSlot(slot);
+      applyRemoteRoom(data.room);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not join the room.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyInviteLink() {
+    const invite = `${window.location.origin}/?room=${roomCode}`;
+    try {
+      await navigator.clipboard.writeText(invite);
+      setCopyStatus("Link copied!");
+      window.setTimeout(() => setCopyStatus("Copy invite link"), 1800);
+    } catch {
+      setCopyStatus("Copy the URL above");
+    }
+  }
+
+  function startRemoteVoting() {
+    if (participantSlot !== null && room?.participants[participantSlot]?.completed) {
+      setScreen("waiting");
+      return;
+    }
+    setCardIndex(0);
+    setScreen("deck");
   }
 
   const resolveVotes = useCallback(
@@ -253,9 +468,40 @@ export default function Home() {
   );
 
   const castVote = useCallback(
-    (vote: Vote) => {
+    async (vote: Vote) => {
       const restaurant = restaurants[cardIndex];
-      if (!restaurant || handoff) return;
+      if (!restaurant || handoff || voteSubmitting) return;
+
+      setDrag({ x: 0, y: 0, active: false });
+
+      if (deviceMode === "remote" && roomCode && participantId) {
+        setVoteSubmitting(true);
+        setError("");
+        try {
+          const response = await fetch(`/api/rooms/${roomCode}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "vote",
+              participantId,
+              restaurantId: restaurant.id,
+              vote,
+            }),
+          });
+          const data = (await response.json()) as { room?: PublicDinnerRoom; error?: string };
+          if (!response.ok || !data.room) throw new Error(data.error ?? "Your vote was not saved.");
+          applyRemoteRoom(data.room);
+          if (data.room.status !== "complete") {
+            if (cardIndex < restaurants.length - 1) setCardIndex((index) => index + 1);
+            else setScreen("waiting");
+          }
+        } catch (caught) {
+          setError(caught instanceof Error ? caught.message : "Your vote was not saved.");
+        } finally {
+          setVoteSubmitting(false);
+        }
+        return;
+      }
 
       const nextVotes = {
         ...votes,
@@ -265,7 +511,6 @@ export default function Home() {
         },
       };
       setVotes(nextVotes);
-      setDrag({ x: 0, y: 0, active: false });
 
       if (cardIndex < restaurants.length - 1) {
         setCardIndex((index) => index + 1);
@@ -281,7 +526,21 @@ export default function Home() {
 
       resolveVotes(nextVotes);
     },
-    [cardIndex, currentPerson, handoff, participantIndex, participantNames.length, resolveVotes, restaurants, votes],
+    [
+      applyRemoteRoom,
+      cardIndex,
+      currentPerson,
+      deviceMode,
+      handoff,
+      participantId,
+      participantIndex,
+      participantNames.length,
+      resolveVotes,
+      restaurants,
+      roomCode,
+      voteSubmitting,
+      votes,
+    ],
   );
 
   useEffect(() => {
@@ -326,6 +585,15 @@ export default function Home() {
     setCardIndex(0);
     setParticipantIndex(0);
     setHandoff(false);
+    setDeviceMode("shared");
+    setRoomCode("");
+    setRoom(null);
+    setParticipantId("");
+    setParticipantSlot(null);
+    setParticipantName("");
+    setCopyStatus("Copy invite link");
+    setError("");
+    window.history.replaceState({}, "", "/");
   }
 
   const selectedPlate = useMemo(() => {
@@ -377,6 +645,17 @@ export default function Home() {
           </header>
 
           <form className="setup-card" onSubmit={findDinner}>
+            <div className="join-room-strip">
+              <span>Joining friends?</span>
+              <input
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value.toUpperCase().slice(0, 6))}
+                placeholder="ROOM CODE"
+                aria-label="Room code"
+                maxLength={6}
+              />
+              <button type="button" onClick={openRoomFromCode}>Join</button>
+            </div>
             <div className="form-heading">
               <div>
                 <span className="step-label">01 · Set the table</span>
@@ -400,14 +679,39 @@ export default function Home() {
             </div>
 
             {partySize > 1 ? (
-              <div className="name-grid">
-                {names.slice(0, partySize).map((name, index) => (
-                  <label key={index}>
-                    <span>{index === 0 ? "You" : `Person ${index + 1}`}</span>
-                    <input value={name} onChange={(event) => updateName(index, event.target.value)} />
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="name-grid">
+                  {names.slice(0, partySize).map((name, index) => (
+                    <label key={index}>
+                      <span>{index === 0 ? "You" : `Person ${index + 1}`}</span>
+                      <input value={name} onChange={(event) => updateName(index, event.target.value)} />
+                    </label>
+                  ))}
+                </div>
+                <fieldset>
+                  <legend><span>↗</span> How should everyone vote?</legend>
+                  <div className="device-choice-grid">
+                    <button
+                      type="button"
+                      className={deviceMode === "shared" ? "device-choice active" : "device-choice"}
+                      onClick={() => setDeviceMode("shared")}
+                      aria-pressed={deviceMode === "shared"}
+                    >
+                      <strong>Pass one phone</strong>
+                      <small>Best when everyone is together</small>
+                    </button>
+                    <button
+                      type="button"
+                      className={deviceMode === "remote" ? "device-choice active" : "device-choice"}
+                      onClick={() => setDeviceMode("remote")}
+                      aria-pressed={deviceMode === "remote"}
+                    >
+                      <strong>Separate phones</strong>
+                      <small>Share a link and vote from anywhere</small>
+                    </button>
+                  </div>
+                </fieldset>
+              </>
             ) : null}
 
             <fieldset>
@@ -525,16 +829,64 @@ export default function Home() {
             {error ? <p className="form-error" role="alert">{error}</p> : null}
 
             <button className="primary-action" type="submit" disabled={loading}>
-              <span>{loading ? "Setting the table…" : "Find our dinner"}</span>
+              <span>
+                {loading
+                  ? "Setting the table…"
+                  : partySize > 1 && deviceMode === "remote"
+                    ? "Create our room"
+                    : "Find our dinner"}
+              </span>
               <span aria-hidden="true">→</span>
             </button>
           </form>
         </section>
       ) : null}
 
+      {screen === "lobby" && room ? (
+        <section className="room-layout">
+          <div className="room-card">
+            <p className="eyebrow"><span>Separate-phone room</span></p>
+            <h1>{participantId ? "The room is ready." : "Pick your seat."}</h1>
+            <p className="room-intro">
+              {participantId
+                ? "Send the link to everyone. You can start swiping while they join."
+                : "Choose your name to join this dinner without seeing anyone else’s votes."}
+            </p>
+
+            <div className="room-code-block">
+              <small>Room code</small>
+              <strong>{room.code}</strong>
+              <button type="button" onClick={copyInviteLink}>{copyStatus}</button>
+            </div>
+
+            <div className="room-roster">
+              {room.participants.map((participant) => (
+                <div className="room-person" key={`${participant.slot}-${participant.name}`}>
+                  <span className={participant.completed ? "complete" : participant.joined ? "joined" : ""}>
+                    {participant.completed ? "✓" : initials(participant.name)}
+                  </span>
+                  <div><strong>{participant.name}</strong><small>{participant.completed ? "votes in" : participant.joined ? "joined" : "waiting to join"}</small></div>
+                  {!participantId && !participant.joined ? (
+                    <button type="button" onClick={() => joinRemoteRoom(participant.slot)} disabled={loading}>That’s me</button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            {participantId ? (
+              <button className="primary-action" type="button" onClick={startRemoteVoting}>
+                <span>{participantSlot !== null && room.participants[participantSlot]?.completed ? "See group status" : `Start ${participantName}’s votes`}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       {screen === "deck" && currentRestaurant ? (
         <section className="deck-layout">
-          {handoff ? (
+          {deviceMode === "shared" && handoff ? (
             <div className="handoff-card">
               <span className="handoff-icon" aria-hidden="true">↝</span>
               <p className="eyebrow"><span>Keep the votes secret</span></p>
@@ -551,9 +903,18 @@ export default function Home() {
                   <p className="eyebrow"><span>{currentPerson} is choosing</span></p>
                   <h1>Trust your first bite.</h1>
                 </div>
-                <div className="participant-stack" aria-label={`${participantIndex + 1} of ${partySize} participants`}>
+                <div className="participant-stack" aria-label={`${deviceMode === "remote" ? (participantSlot ?? 0) + 1 : participantIndex + 1} of ${partySize} participants`}>
                   {participantNames.map((name, index) => (
-                    <span key={`${name}-${index}`} className={index === participantIndex ? "current" : index < participantIndex ? "done" : ""}>
+                    <span
+                      key={`${name}-${index}`}
+                      className={
+                        index === (deviceMode === "remote" ? participantSlot : participantIndex)
+                          ? "current"
+                          : deviceMode === "remote"
+                            ? room?.participants[index]?.completed ? "done" : ""
+                            : index < participantIndex ? "done" : ""
+                      }
+                    >
                       {initials(name)}
                     </span>
                   ))}
@@ -612,13 +973,13 @@ export default function Home() {
               </div>
 
               <div className="swipe-actions" aria-label="Your reaction">
-                <button className="pass" type="button" onClick={() => castVote("pass")} aria-label="Pass">
+                <button className="pass" type="button" onClick={() => castVote("pass")} aria-label="Pass" disabled={voteSubmitting}>
                   <span aria-hidden="true">×</span><small>Pass</small>
                 </button>
-                <button className="love" type="button" onClick={() => castVote("love")} aria-label="Love this option">
+                <button className="love" type="button" onClick={() => castVote("love")} aria-label="Love this option" disabled={voteSubmitting}>
                   <span aria-hidden="true">↑</span><small>Love</small>
                 </button>
-                <button className="like" type="button" onClick={() => castVote("interested")} aria-label="Interested">
+                <button className="like" type="button" onClick={() => castVote("interested")} aria-label="Interested" disabled={voteSubmitting}>
                   <span aria-hidden="true">♡</span><small>Into it</small>
                 </button>
               </div>
@@ -631,6 +992,23 @@ export default function Home() {
               ) : null}
             </>
           )}
+        </section>
+      ) : null}
+
+      {screen === "waiting" && room ? (
+        <section className="waiting-layout">
+          <div className="waiting-orbit" aria-hidden="true"><span /><span /><span /></div>
+          <p className="eyebrow"><span>Your votes are in</span></p>
+          <h1>Waiting on the<br />rest of the table.</h1>
+          <p>This page updates automatically. The result stays hidden until everyone finishes.</p>
+          <div className="waiting-roster">
+            {room.participants.map((participant) => (
+              <span className={participant.completed ? "done" : ""} key={`${participant.slot}-${participant.name}`}>
+                <b>{participant.completed ? "✓" : "…"}</b>{participant.name}
+              </span>
+            ))}
+          </div>
+          <small>Room {room.code} · open for six hours</small>
         </section>
       ) : null}
 
