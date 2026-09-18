@@ -8,3 +8,5 @@ out/
 *.tsbuildinfo
 .DS_Store
 npm-debug.log*
+.vercel
+.env*
