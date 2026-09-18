@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2V26H840M32W2P7X6P0H6VC",
+  "session_id": "b8ef3a04-ecb2-44a5-b631-7683120cdae7",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-18T20:09:22.723059Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".env.example"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "fa31ed51e777",
+  "checkpoint_transcript_start": 78,
+  "transcript_lines_at_start": 78,
+  "compact_transcript_start": 10,
+  "token_usage": {
+    "input_tokens": 352,
+    "cache_creation_tokens": 12355,
+    "cache_read_tokens": 817635,
+    "output_tokens": 3136,
+    "api_call_count": 11
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-frontend-design-2026-09-18T20:06:49.91462Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "frontend-design"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "fa31ed51e777",
+      "timestamp": "2026-09-18T20:06:49.91462Z",
+      "native": {
+        "command": "/frontend-design"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/frontend-design",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-18T20:09:22.681744Z",
+    "agent_lines": 9,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9,
+    "total_lines_changed": 9,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
