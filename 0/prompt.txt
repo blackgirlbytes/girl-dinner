@@ -1,0 +1,49 @@
+wait are there other options..i dont want to do the development version..i want this to be used in production
+
+---
+
+i dont want to use supabase..what about websockets? is that possible
+
+---
+
+are these options free
+
+---
+
+can i use cloudflare web sockets+ durable objects and host it on vercel easily
+
+---
+
+are you able to do this Create a small Cloudflare Worker containing the Durable Object. or are there parts i will have to do
+
+---
+
+is vercel + supabase an additional cost..i already have a pro plan on vercel
+
+---
+
+redis would be additional cost?
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 3 tabs.
+- Current URL: https://vercel.com/docs/redis
+</in-app-browser-context>
+
+## My request:
+lets do supabase
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 3 tabs.
+- Current URL: https://vercel.com/docs/redis
+</in-app-browser-context>
+
+## My request:
+also the vercel cli is installed so you should be able to handle most of the setup if not all
