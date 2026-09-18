@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2V29M8S0T6QSMP9ZRM7HRKC",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "supabase/migrations/20260918201057_fix_participant_vote_count.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1273,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 305664,
+    "output_tokens": 554,
+    "api_call_count": 2
+  }
+}
