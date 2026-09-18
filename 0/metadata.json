@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2V1V9MCXJN9STDKE5733B84",
+  "session_id": "01a0b5e1-b180-7e33-b556-abcc5b182c75",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-18T20:03:12.433257Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".agents/skills/supabase/SKILL.md"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "5afd5c62923c",
+  "checkpoint_transcript_start": 1215,
+  "transcript_lines_at_start": 1215,
+  "compact_transcript_start": 161,
+  "token_usage": {
+    "input_tokens": 6389,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 459648,
+    "output_tokens": 801,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-18T20:03:12.290885Z",
+    "agent_lines": 149,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 149,
+    "total_lines_changed": 149,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
