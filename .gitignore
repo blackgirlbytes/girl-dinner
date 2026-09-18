@@ -10,4 +10,5 @@ out/
 npm-debug.log*
 .vercel
 .env*
+!.env.example
 supabase/.temp/
