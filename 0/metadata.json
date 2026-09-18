@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M2V0PJHJJ0ZX1AF6HWGDK369",
+  "session_id": "01a0b5e1-b180-7e33-b556-abcc5b182c75",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-18T19:43:09.076547Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/api/rooms/route.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-5.6-sol",
+  "turn_id": "d6c25a07ebda",
+  "checkpoint_transcript_start": 822,
+  "transcript_lines_at_start": 822,
+  "compact_transcript_start": 107,
+  "token_usage": {
+    "input_tokens": 3273,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 283904,
+    "output_tokens": 700,
+    "api_call_count": 2
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-18T19:43:08.98447Z",
+    "agent_lines": 44,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 44,
+    "total_lines_changed": 44,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
