@@ -1,142 +1,164 @@
 # How I prompted agents to build Girl Dinner
 
-Girl Dinner helps one to eight people decide what to eat. You enter preferences, swipe through restaurants, and vote. If nobody agrees, you get suggestions for a light plate at home.
+Girl Dinner helps one to eight people decide what to eat. You swipe through restaurants, vote, and get suggestions for a light plate at home if nobody agrees.
 
-I used **Codex with GPT-5.6 Sol for the application logic** and **Claude Code for the redesign**, because I prefer Claude's design judgment. That’s my preference for this project, not a universal model ranking.
+I used **Codex with GPT-5.6 Sol for the logic** and **Claude Code for the redesign**, because I prefer Claude for design work.
 
-Here’s how to try the same workflow. These are condensed, copyable versions of my prompts, with a few improvements from what we learned. You can explore the original conversations in [Entire session 1](https://entire.io/sessions/aws-us-east-2/2286e7523bac0e5a6c54af4d3c2e9b85) and [Entire session 2](https://entire.io/sessions/aws-us-east-2/17ded876128e23a4adedfed05d9e83c0).
+These are my actual prompts, including the follow-up questions and changes of direction. The prompt blocks preserve my wording; only transcript formatting and encoded spaces have been cleaned up. The explanations between them describe what happened and what you can take from it. Follow along in [Entire session 1](https://entire.io/sessions/aws-us-east-2/2286e7523bac0e5a6c54af4d3c2e9b85) and [Entire session 2](https://entire.io/sessions/aws-us-east-2/17ded876128e23a4adedfed05d9e83c0).
 
-## 1. Make the work traceable before you build
+## 1. Set up a history you can learn from
 
-My first request was to create an `AGENTS.md` rule requiring a commit after every file change. I later added an immediate push.
-
-```text
-Create AGENTS.md. After every tracked file change, commit and push
-that change before editing another file. Stage only your changes.
-Never commit secrets or ignored files. If the push fails, stop and
-explain the blocker.
-```
-
-With Entire enabled, commits connect code changes to checkpoints containing the agent’s session context, and pushes sync that history. I wanted frequent, small checkpoints so I could revisit the prompts and decisions behind the code. **AGENTS.md sets the workflow; Entire records it.**
-
-One commit per file was my choice for this walkthrough, not an Entire requirement. It creates more commits, and intermediate commits may not build independently. For other projects, you might prefer one commit per coherent change. [How Entire captures checkpoints](https://docs.entire.io/guides/checkpoints/capture-checkpoints)
-
-## 2. Ask the agent to explain unfamiliar technology
-
-Before implementation, I asked it to read Jev’s documentation and explain what we could actually build.
+My first prompt:
 
 ```text
-Read https://docs.typesafe.ai/introduction. We're building Girl Dinner
-to help 1–8 people choose food based on cravings, dietary needs,
-budget, and location. Explain how Jev fits, what it cannot do, and
-which credentials or services we need before writing code.
+lets create an AGENTS.md file that instructs the agent to make a commit every time a file is changed
 ```
 
-**Jev, simply: an AI-powered multiple-choice machine.** You give it information and predefined questions. It returns typed judgments your software can use.
-
-| Question type | Plain-English meaning | Dinner example |
-| --- | --- | --- |
-| Choice | Pick from supplied options | Which of these cuisines fits? |
-| Score | Rate something on defined levels | How well does this restaurant fit, from poor to exceptional? |
-| Noul | Estimate the probability a statement is true | Does this description suggest a quiet atmosphere? |
-
-For Girl Dinner, we used **Score** questions. Google supplies restaurant information; Jev scores the fit; our code combines those scores with other signals and handles voting. Jev doesn’t search for restaurants or run the application. [Jev’s question types](https://docs.typesafe.ai/primitives)
-
-Choice and Score also return confidence. Think “how concentrated is this judgment?” rather than “how likely is this guaranteed to be correct?” Noul returns a probability without a separate confidence field. [Confidence explained](https://docs.typesafe.ai/confidence)
-
-General-purpose models can return structured outputs too. What interested me here was building around small, explicitly defined judgments.
-
-## 3. Define the experience, including when nobody agrees
-
-I added two requirements through follow-up prompts: Tinder-style swiping and an at-home fallback. Then I asked the agent to save our decisions.
+Later, I tightened the rule:
 
 ```text
-Let people swipe through several restaurant options. If nobody
-agrees, suggest a simple Girl Dinner plate at home. Turn our
-decisions into PLAN.md with the user flow, service responsibilities,
-build phases, and acceptance criteria.
+okay api key is in there..only thing i want you to do is add to the agents.md this rule..it already says always make a commit on every file change..but we need it to make a commit and push on every file change.
 ```
 
-This gave the agent a concrete product to build and a plan another agent could read later. The fallback was part of the experience from the beginning: “no restaurant match” still needed to lead somewhere useful. [Original planning checkpoint](https://github.com/blackgirlbytes/girl-dinner/commit/630140f)
+With Entire enabled, commits connect code changes to session checkpoints, and pushes sync that history. I wanted small, frequent checkpoints so I could revisit how the app came together. `AGENTS.md` sets the workflow; Entire records the context.
 
-## 4. Connect real data and build a complete first flow
+Committing every file change was my choice, not an Entire requirement. It creates more commits; another project might use one per coherent change. [Checkpoint capture](https://docs.entire.io/guides/checkpoints/capture-checkpoints)
 
-The services had separate jobs:
+## 2. Ask the agent to teach you before it builds
 
-- **Browser location:** coordinates, with the user’s permission.
-- **Google Places:** nearby restaurants and details such as ratings, prices, and addresses.
-- **Jev:** subjective preference scoring.
-- **Next.js:** the interface, server endpoints, and application rules.
+This was my product brief:
 
 ```text
-Create ignored .env.local placeholders for TYPESAFE_API_KEY and
-GOOGLE_MAPS_API_KEY. I'll add the values. Keep both keys server-side.
-Then build setup → restaurant shortlist → swiping → result or
-at-home fallback. Label sample data clearly when live data is unavailable.
+okay great..lets take a look at the jev documentation ([https://docs.typesafe.ai/introduction](https://docs.typesafe.ai/introduction))..we're going to build with it..for context we're building girl-dinner. This application does the following:
+
+it helps people from 1 person to a group of 8 decide on what they want to eat together. If it's one person..it just helps them decide what they should eat by themselves..if it's 2 people it could be best friends or a couple (like gf, bf) who want to know what type of food they should eat. then the more people you add (up to 8)..it includes them as well.
+
+It should get criteria from people like what theyre interested in eating, dietary restrictions, people's locations..it can use like map location /gps , and find restaurants plus the menu in the area that will fit. Jev will be the one that helps make the decision based on its scoring.
+
+But before we build this all out..let's figure out:
+
+1. how to use jev (please share that info with me even though youre the one executing)
+2. do you need anything from me..such as api key etc..or are you able to grab that on your own
 ```
 
-The first version let a group pass one phone around. The agent tested a real Google Places request and Jev scoring, then exercised the browser flow. Browser testing caught a useful bug: fallback ingredients weren’t adapting to dietary selections. The agent corrected it.
+The useful part of this prompt is asking the agent to explain the technology and its dependencies before implementation. I wanted to understand what I was building, even though the agent would write the code.
 
-Be precise about what exists: this version collects shared group preferences and one search location, with individual votes. Separate preference profiles and location balancing were broader planning ideas.
+**Jev is an AI-powered multiple-choice machine.** Give it information and predefined questions, and it returns judgments your software can use:
 
-Also, the displayed order ideas are representative suggestions, not verified restaurant menus. Don’t turn a preference score into a claim of allergy safety. [Implemented recommendation route](https://github.com/blackgirlbytes/girl-dinner/blob/75514edf035b0d420113d8035b146da582d46bad/app/api/recommendations/route.ts)
+- **Choice:** pick an option, such as one of three cuisines.
+- **Score:** rate something on defined levels, such as poor through exceptional restaurant fit.
+- **Noul:** estimate the probability a statement is true, such as whether a description suggests a quiet atmosphere.
 
-## 5. Use a real scenario to challenge the architecture
+For Girl Dinner, Google finds restaurant candidates and Jev scores their fit. Our code handles ranking and votes. **Jev provides the judgment; the code remains in charge.** [Jev’s question types](https://docs.typesafe.ai/primitives)
 
-My next question was practical: what if one person is at home and another is at work?
+Choice and Score also return confidence, which describes how concentrated the judgment is. A confident answer can still be wrong. Noul returns a probability without a separate confidence field. [Confidence explained](https://docs.typesafe.ai/confidence)
+
+## 3. Build the experience through follow-up prompts
+
+I added the fallback:
 
 ```text
-Support both passing one phone and voting on separate phones.
-People should join with a link or room code. This must work when
-deployed: rooms and votes need to survive server restarts, and
-everyone should receive the same result.
+oh last requirement if no decision is made then we can decide that they need to eat a girl dinner..which could be just make a light plate at home..and give them suggestions for that.
 ```
 
-That exposed the limits of the temporary in-memory room store. We discussed Supabase, Cloudflare Durable Objects, WebSockets, and Redis before I chose **Vercel + Supabase**.
-
-I already had Vercel Pro. Vercel hosted the Next.js app; Supabase supplied persistent Postgres storage and realtime notifications. In our implementation, a room update tells connected phones to fetch the latest state.
-
-The useful distinction: **WebSockets carry updates; durable storage remembers the votes.** Supabase Realtime uses WebSockets, so choosing Supabase didn’t mean giving those up. [Supabase Broadcast](https://supabase.com/docs/guides/realtime/broadcast)
-
-We provisioned Supabase’s Free plan through Vercel Marketplace. It was a separate service, not a paid Supabase subscription included with my Vercel plan.
-
-## 6. Delegate setup, deployment, and verification together
-
-I explicitly told the agent that the Vercel CLI was installed and it could handle the setup.
+Then the interaction:
 
 ```text
-Use the installed Vercel CLI to link the project and provision
-Supabase through Marketplace. Configure the environments, apply
-the database migrations, and deploy. Use the Free plan we selected;
-ask before anything requires a paid upgrade or account authorization.
-Verify room creation, joining, simultaneous votes, and realtime
-updates against the deployed app. Keep credentials out of logs and Git.
+in the end would the users have multiple options maybe like tinder style that they can swipe through and then come to a final decision
 ```
 
-The agent handled provisioning, environment configuration, migrations, and deployment. I supplied the initial Google and TypeSafe keys.
-
-Deployment testing mattered: votes persisted, but a realtime notification failed to arrive. The agent moved the notification into the database transaction that updates the room. That’s the kind of issue “the build passed” doesn’t establish. [Broadcast fix checkpoint](https://github.com/blackgirlbytes/girl-dinner/commit/53c6756)
-
-## 7. Give the design handoff a clear boundary
-
-Once the logic worked, I switched to Claude Code. I didn’t like the neo-brutalist styling, and the swipe card needed to be the focus.
+Then asked the agent to preserve our decisions:
 
 ```text
-Read PLAN.md and inspect the running app at phone and desktop sizes.
-Redesign it around the swipe card. Remove the neo-brutalist styling,
-use a phone-width layout, and simplify setup into short steps.
-Preserve the existing API calls, voting, and realtime behavior.
-Verify the redesigned flows in the browser.
+lets make this into a plan file
 ```
 
-Claude produced a deep-plum background, warm ivory cards, simpler typography, and three setup steps. Giving it a concrete interaction to emphasize was more useful than asking it to “make it beautiful.” [Redesign checkpoint](https://github.com/blackgirlbytes/girl-dinner/commit/21f42d3)
+I didn’t specify the whole app in one perfect prompt. Each follow-up added a product decision. Saving them in `PLAN.md` gave the build—and the next agent—a shared reference. [Planning checkpoint](https://github.com/blackgirlbytes/girl-dinner/commit/630140f)
 
-One last prompt belongs after any handoff:
+## 4. Supply credentials, then let the agent implement
+
+I asked where the TypeSafe key belonged:
 
 ```text
-Recheck the complete deployed journey after these changes, including
-two separate browser sessions joining and voting in the same room.
-Report what passed, what failed, and what you could not test.
+okay do we need to create a dotenv file for the api key..where do you want me to put the api key
 ```
 
-Claude verified the main screens but reported that it hadn’t exercised the live separate-phone lobby and waiting flow. That distinction belongs in the handoff: earlier backend verification doesn’t replace checking the final interface.
+And added Google Places:
+
+```text
+what would be the api key name for the google maps/places..can we add it to our env.local and ill add the value
+```
+
+The agent created placeholders in ignored `.env.local`, using `TYPESAFE_API_KEY` and `GOOGLE_MAPS_API_KEY`. I supplied the values; server endpoints kept the keys out of browser code.
+
+Then:
+
+```text
+okay we have both the api keys added. i think you can start working on it
+```
+
+That short instruction worked because we had already established the plan. The agent built the first Next.js flow with Google Places discovery, Jev scoring, pass-the-phone voting, and the at-home fallback. It tested real API calls and exercised the browser flow.
+
+One important limit: Google restaurant metadata wasn’t a verified menu feed. The app’s order ideas were representative suggestions, and a Jev score couldn’t establish allergy safety. The first version also used shared group preferences and one search location, rather than every individual profile envisioned in the plan. [Recommendation implementation](https://github.com/blackgirlbytes/girl-dinner/blob/75514edf035b0d420113d8035b146da582d46bad/app/api/recommendations/route.ts)
+
+## 5. Challenge the implementation with a real situation
+
+The first flow assumed people could pass around one phone. I asked:
+
+```text
+well what if people wanted to vote on separate phones..we should give the option for voting on one phone or on separate phones..one person might be at home..and another person at work..type of thing and they want to decide beforehand
+```
+
+When I learned the shared-room implementation kept its data in server memory, I pushed back:
+
+```text
+wait are there other options..i dont want to do the development version..i want this to be used in production
+```
+
+This changed the architecture. Rooms needed to survive restarts and work across deployed server instances.
+
+I also asked:
+
+```text
+i dont want to use supabase..what about websockets? is that possible
+```
+
+That led to a useful explanation: **WebSockets carry updates; durable storage remembers the votes.** We explored Cloudflare Durable Objects, Redis, and Supabase. Supabase Realtime itself uses WebSockets, so these weren’t mutually exclusive choices. [Supabase Broadcast](https://supabase.com/docs/guides/realtime/broadcast)
+
+## 6. Choose services around your constraints, then delegate setup
+
+An existing subscription mattered to the decision:
+
+```text
+is vercel + supabase an additional cost..i already have a pro plan on vercel
+```
+
+After discussing costs and alternatives, I chose:
+
+```text
+lets do supabase
+```
+
+Vercel would host the app; Supabase would store rooms and votes and notify connected phones about updates. We used Supabase’s Free plan through Vercel Marketplace—a separate service from my Vercel Pro subscription.
+
+Then I told the agent what tools it could use:
+
+```text
+also the vercel cli is installed so you should be able to handle most of the setup if not all
+```
+
+The agent handled provisioning, environment configuration, migrations, and deployment. That’s an important part of working with an agent: tell it about the access and tools it has so it can carry the work through setup and verification.
+
+Testing the deployment exposed a realtime issue even though votes persisted. The agent moved notifications into the database transaction that updated the room. A successful build alone wouldn’t have caught that. [Broadcast fix](https://github.com/blackgirlbytes/girl-dinner/commit/53c6756)
+
+## 7. Switch agents and give specific design feedback
+
+I used Claude Code for the redesign because I preferred its design judgment. After it inspected the app and suggested directions, I said:
+
+```text
+I was thinking i dont like the neo brutalist style and yes about phone width and desktop width as an issue..it does need to make swipe card as the hero
+```
+
+That feedback identified both an aesthetic problem and the interaction that deserved emphasis. Claude moved to a phone-width layout, a prominent ivory swipe card on a deep-plum background, and three shorter setup steps. It reported preserving the API and voting logic. [Redesign checkpoint](https://github.com/blackgirlbytes/girl-dinner/commit/21f42d3)
+
+The handoff also left a concrete verification gap: Claude checked the main screens but reported that it hadn’t exercised the live separate-phone lobby and waiting flow. That still needed checking after the redesign. The session history makes those limits visible alongside the successful changes.
