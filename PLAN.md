@@ -277,6 +277,17 @@ Before a production launch, choose one or more of:
 
 The source must provide enough provenance and freshness information to avoid presenting stale prices or unsafe dietary claims.
 
+### Realtime rooms and persistence
+
+Supabase is the selected production backend for separate-phone voting rooms. The Vercel project is connected to a Supabase Free project through the Vercel Marketplace.
+
+- Postgres stores room participants, restaurant candidates, private votes, and the resolved result for six hours.
+- Transactional database functions serialize joins and votes so simultaneous requests cannot overwrite each other.
+- Supabase Realtime Broadcast tells connected phones when a room changes.
+- Each broadcast prompts clients to fetch the trusted room snapshot from the Next.js API; clients never calculate or publish the group result.
+- A low-frequency refresh protects the experience when a phone sleeps, changes networks, or misses a broadcast.
+- Browser code receives only the Supabase publishable key. The Supabase secret key remains in Vercel's server-side environment.
+
 ## Privacy and safety
 
 - Ask for location only when the participant chooses to share it.
@@ -364,8 +375,8 @@ The first version does not need restaurant reservations, ordering checkout, soci
 
 The application can be built with fixtures first. Live integration will require:
 
-1. A TypeSafe API key created from the project owner's TypeSafe account.
-2. A Google Cloud project and restricted Maps/Places credentials, if Google is selected.
-3. A decision about the initial menu-data strategy and launch geography.
+1. A decision about the initial menu-data strategy and launch geography.
+
+The TypeSafe, Google Places, and Supabase credentials are already configured for local development. Supabase is also connected to the Vercel production, preview, and development environments.
 
 Secrets should be placed in local or hosted environment configuration and never pasted into documentation or committed to the repository.
