@@ -1,0 +1,165 @@
+take a look at my prompts, sessions , checkpoints that i had with entire in this repo..like i think u can use the entire cli for this..and create a step by step tutorial for how to prompt your agent to build this..explain cool things like jev to people..we had a really nice simple explanation here ..talk about the agents.md decision to commit and push after each change so we can have those recorded in the entire cli sessions..talk about vercel decision along with supabase and allowing the agent to do this end to end..google api etc..i want to write as someone who is helping people get better at agentic engineering..esp new things like jev..but the tutorial should stay fairly succinct not like super long where you dont want to read it. still enough context to know why we did certain things..and then we can link them to my sessions. [https://entire.io/sessions/aws-us-east-2/2286e7523bac0e5a6c54af4d3c2e9b85](https://entire.io/sessions/aws-us-east-2/2286e7523bac0e5a6c54af4d3c2e9b85) [https://entire.io/sessions/aws-us-east-2/17ded876128e23a4adedfed05d9e83c0](https://entire.io/sessions/aws-us-east-2/17ded876128e23a4adedfed05d9e83c0) and we can talk about how i used claude code for the redesign cuz i believe it's better at design..and how i used codex gpt sol for the actual logic..things like that..like step by step tutorial..easy to copy prompts..and explanation for certain decisions
+
+
+````markdown
+## Jev for dummies
+
+Jev is an AI that **makes small decisions for software**.
+
+ChatGPT is designed to write things: answers, emails, code, summaries.
+
+Jev doesn’t write. You give it some information and a limited set of possible answers. It tells your program which answer seems most likely.
+
+Think of Jev as a very fast, AI-powered multiple-choice machine.
+
+### Simple example
+
+Imagine someone sends this support message:
+
+> “My card was charged twice. Please refund me.”
+
+You could ask Jev:
+
+- Is the customer requesting a refund?
+- Which department should receive this?
+- How upset does the customer seem?
+
+Jev might return:
+```text
+Refund requested: 99% yes
+
+Department:
+- Billing: 92%
+- Technical support: 6%
+- Sales: 2%
+
+Frustration:
+- Calm: 20%
+- Frustrated: 75%
+- Very angry: 5%
+```
+
+Your regular code then decides what happens:
+```text
+If refund probability is above 90%:
+    send the ticket to Billing
+```
+
+Jev provides the judgment. **Your code remains in charge.**
+
+## The three kinds of questions
+
+Jev can answer three basic types of questions.
+
+### 1. Choice
+
+Pick one option from a list.
+
+> Which team should handle this?
+
+- Billing
+- Technical support
+- Sales
+
+Jev selects one and tells you how likely each option is.
+
+### 2. Score
+
+Place something on a scale.
+
+> How serious is this problem?
+
+- 0: Minor
+- 1: Important, but there is a workaround
+- 2: Critical and completely blocking
+
+Jev might return `1.3`, meaning it appears mostly like level 1, with some chance of being level 2.
+
+### 3. Noul
+
+This is TypeSafe’s unusual name for a yes-or-no question.
+
+> Is the customer asking for a refund?
+
+Jev returns a number between zero and one:
+
+- `0.99` means almost certainly yes.
+- `0.50` means Jev is unsure.
+- `0.02` means almost certainly no.
+
+## Why not just use ChatGPT?
+
+You can ask ChatGPT to classify something, but ChatGPT fundamentally wants to produce text. It might return:
+
+> “Based on my analysis, this appears to be primarily a billing-related issue…”
+
+Your program must then extract “billing” from that sentence. Sometimes a language model might use a different format, add an explanation, or produce something unexpected.
+
+Jev only returns one of the answer types you defined. If the choices are `billing`, `technical`, and `sales`, it cannot suddenly return `customer happiness department`.
+
+That makes its output easier and safer for software to consume.
+
+However, Jev can still choose the **wrong** valid answer. Its structured format prevents made-up output types; it does not guarantee perfect judgment.
+
+## What “confidence” means
+
+Jev also tells you how certain it feels.
+
+Your code could use that like this:
+```text
+High confidence → act automatically
+Medium confidence → ask the user to confirm
+Low confidence → send it to a human
+```
+
+For example:
+
+- 98% sure it is a billing request: automatically send it to Billing.
+- 55% sure: ask someone to review it.
+- 34% sure: do not take action.
+
+Confidence is useful, but it is not proof. A highly confident answer can still be wrong.
+
+## What Jev is good at
+
+Jev is meant for tasks such as:
+
+- Sorting support tickets
+- Detecting spam or harmful content
+- Rating how serious a bug is
+- Deciding which document category something belongs to
+- Checking whether an answer is supported by a source
+- Routing a request to the right tool or employee
+- Flagging questionable transactions for review
+- Ranking search results
+
+## What Jev is not good for
+
+Jev is not intended to:
+
+- Hold a conversation
+- Write an article
+- Generate code
+- Explain its reasoning
+- Create images
+- Develop and execute a complicated plan
+- Operate independently as an AI agent
+
+It handles focused judgments. Normal code handles the actual workflow and actions.
+
+## The easiest analogy
+
+Imagine a normal software system is a factory.
+
+ChatGPT is like a talented general-purpose employee who can read, write, explain, and improvise—but may occasionally ignore the expected procedure.
+
+Jev is like a worker stationed at one checkpoint:
+
+> “Look at this item, choose one of these labels, and report how sure you are.”
+
+It performs that narrow job quickly, then the factory’s machinery decides what happens next.
+
+So the shortest possible explanation is:
+
+> **Jev reads information, answers predefined questions about it, and gives your software probabilities it can use to make decisions.**
+````
