@@ -1,0 +1,13 @@
+okay we have both the api keys added. i think you can start working on it
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 2 tabs.
+- Current URL: http://localhost:3000/
+</in-app-browser-context>
+
+## My request:
+well what if people wanted to vote on separate phones..we should give the option for voting on one phone or on separate phones..one person might be at home..and another person at work..type of thing and they want to decide beforehand
