@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
-import { FormEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { CSSProperties, FormEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Location = { latitude: number; longitude: number };
 type Vote = "pass" | "interested" | "love";
@@ -106,13 +106,12 @@ function toggleInList(list: string[], value: string) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+function sentence(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function personColor(index: number) {
+  return `var(--p${(Math.max(0, index) % 8) + 1})`;
 }
 
 function priceMarks(priceLevel: number) {
@@ -127,6 +126,7 @@ function voteWeight(vote: Vote | undefined) {
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("setup");
+  const [setupStep, setSetupStep] = useState(0);
   const [partySize, setPartySize] = useState(1);
   const [names, setNames] = useState(["You"]);
   const [cravings, setCravings] = useState<string[]>(["comfort food"]);
@@ -344,6 +344,10 @@ export default function Home() {
 
   async function findDinner(event: FormEvent) {
     event.preventDefault();
+    if (setupStep < 2) {
+      setSetupStep((step) => step + 1);
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -635,6 +639,7 @@ export default function Home() {
 
   function reset() {
     setScreen("setup");
+    setSetupStep(0);
     setRestaurants([]);
     setVotes({});
     setWinner(null);
@@ -676,320 +681,360 @@ export default function Home() {
     return { ...plate, items };
   }, [cravings, dietary, partySize]);
 
+  const supporters =
+    winner && deviceMode === "shared"
+      ? participantNames.filter((name) => {
+          const reaction = votes[name]?.[winner.id];
+          return reaction === "love" || reaction === "interested";
+        })
+      : [];
+
+  const remoteOnly = partySize > 1 && deviceMode === "remote";
+
   return (
-    <main className={`app-shell screen-${screen}`}>
+    <main className={`shell screen-${screen}`}>
       <nav className="topbar" aria-label="Primary navigation">
         <button className="wordmark" type="button" onClick={reset} aria-label="Girl Dinner home">
-          <span className="wordmark-dot" aria-hidden="true" />
           girl dinner
         </button>
-        <span className="topbar-note">Decision relief for hungry people</span>
-        <button className="tiny-button" type="button" onClick={reset}>Start over</button>
+        {screen !== "setup" || setupStep > 0 ? (
+          <button className="text-button" type="button" onClick={reset}>Start over</button>
+        ) : null}
       </nav>
 
       {screen === "setup" ? (
-        <section className="setup-layout">
-          <header className="hero-copy">
-            <p className="eyebrow"><span>Tonight’s question</span></p>
-            <h1>What are we<br /><em>actually</em> eating?</h1>
-            <p className="hero-lede">
-              Give us the table mood. We’ll find nearby contenders, let everyone swipe,
-              and call the winner.
-            </p>
-            <div className="hero-ticket" aria-hidden="true">
-              <span>one table</span><span>one answer</span><strong>zero group chat spirals</strong>
-            </div>
-          </header>
+        <form className="screen" onSubmit={findDinner}>
+          <div className="steps" aria-label={`Step ${setupStep + 1} of 3`}>
+            {[0, 1, 2].map((step) => <span key={step} className={step <= setupStep ? "done" : ""} />)}
+          </div>
 
-          <form className="setup-card" onSubmit={findDinner}>
-            <div className="join-room-strip">
-              <span>Joining friends?</span>
-              <input
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase().slice(0, 6))}
-                placeholder="ROOM CODE"
-                aria-label="Room code"
-                maxLength={6}
-              />
-              <button type="button" onClick={openRoomFromCode}>Join</button>
-            </div>
-            <div className="form-heading">
-              <div>
-                <span className="step-label">01 · Set the table</span>
-                <h2>Who’s hungry?</h2>
-              </div>
-              <span className="party-readout">{partySize} {partySize === 1 ? "person" : "people"}</span>
-            </div>
+          {setupStep === 0 ? (
+            <>
+              <header className="screen-head">
+                <h1>Who’s eating tonight?</h1>
+                <p>Pick a headcount. Everyone gets a say.</p>
+              </header>
 
-            <div className="party-picker" role="group" aria-label="Party size">
-              {Array.from({ length: 8 }, (_, index) => index + 1).map((size) => (
-                <button
-                  type="button"
-                  className={partySize === size ? "active" : ""}
-                  key={size}
-                  onClick={() => updatePartySize(size)}
-                  aria-pressed={partySize === size}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-
-            {partySize > 1 ? (
-              <>
-                <div className="name-grid">
-                  {names.slice(0, partySize).map((name, index) => (
-                    <label key={index}>
-                      <span>{index === 0 ? "You" : `Person ${index + 1}`}</span>
-                      <input value={name} onChange={(event) => updateName(index, event.target.value)} />
-                    </label>
-                  ))}
-                </div>
-                <fieldset>
-                  <legend><span>↗</span> How should everyone vote?</legend>
-                  <div className="device-choice-grid">
+              <fieldset className="group">
+                <legend className="group-title">How many of you</legend>
+                <div className="count-row">
+                  {Array.from({ length: 8 }, (_, index) => index + 1).map((size) => (
                     <button
                       type="button"
-                      className={deviceMode === "shared" ? "device-choice active" : "device-choice"}
+                      className={partySize === size ? "on" : ""}
+                      key={size}
+                      onClick={() => updatePartySize(size)}
+                      aria-pressed={partySize === size}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                {partySize > 1 ? (
+                  <div className="names">
+                    {names.slice(0, partySize).map((name, index) => (
+                      <label key={index}>
+                        <span>{index === 0 ? "You" : `Person ${index + 1}`}</span>
+                        <input className="field" value={name} onChange={(event) => updateName(index, event.target.value)} />
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </fieldset>
+
+              {partySize > 1 ? (
+                <fieldset className="group">
+                  <legend className="group-title">How everyone votes</legend>
+                  <div className="tiles">
+                    <button
+                      type="button"
+                      className={deviceMode === "shared" ? "tile on" : "tile"}
                       onClick={() => setDeviceMode("shared")}
                       aria-pressed={deviceMode === "shared"}
                     >
                       <strong>Pass one phone</strong>
-                      <small>Best when everyone is together</small>
+                      <small>You’re all in the same room</small>
                     </button>
                     <button
                       type="button"
-                      className={deviceMode === "remote" ? "device-choice active" : "device-choice"}
+                      className={deviceMode === "remote" ? "tile on" : "tile"}
                       onClick={() => setDeviceMode("remote")}
                       aria-pressed={deviceMode === "remote"}
                     >
                       <strong>Separate phones</strong>
-                      <small>Share a link and vote from anywhere</small>
+                      <small>Share a link, vote anywhere</small>
                     </button>
                   </div>
                 </fieldset>
-              </>
-            ) : null}
+              ) : null}
 
-            <fieldset>
-              <legend><span>02</span> What sounds good?</legend>
-              <div className="chip-cloud">
-                {CRAVING_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={cravings.includes(option) ? "chip selected" : "chip"}
-                    onClick={() => setCravings((current) => toggleInList(current, option))}
-                    aria-pressed={cravings.includes(option)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-              <div className="add-row">
-                <input
-                  value={customCraving}
-                  onChange={(event) => setCustomCraving(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addCustomCraving();
-                    }
-                  }}
-                  placeholder="Add a craving…"
-                  aria-label="Custom craving"
-                />
-                <button type="button" onClick={addCustomCraving}>Add</button>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend><span>03</span> Anything we need to respect?</legend>
-              <div className="chip-cloud compact">
-                {DIETARY_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={dietary.includes(option) ? "chip selected constraint" : "chip"}
-                    onClick={() => setDietary((current) => toggleInList(current, option))}
-                    aria-pressed={dietary.includes(option)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-              <p className="field-help">We treat these as constraints. Always confirm allergens with the restaurant.</p>
-            </fieldset>
-
-            <div className="split-fields">
-              <fieldset>
-                <legend><span>04</span> Budget</legend>
-                <div className="segmented" role="group" aria-label="Budget">
-                  {[1, 2, 3, 4].map((level) => (
-                    <button
-                      type="button"
-                      key={level}
-                      onClick={() => setBudget(level)}
-                      className={budget === level ? "active" : ""}
-                      aria-pressed={budget === level}
-                    >
-                      {"$".repeat(level)}
-                    </button>
-                  ))}
+              <details className="reveal">
+                <summary>Joining a friend’s room instead?</summary>
+                <div className="add-row">
+                  <input
+                    className="field"
+                    value={joinCode}
+                    onChange={(event) => setJoinCode(event.target.value.toUpperCase().slice(0, 6))}
+                    placeholder="Room code"
+                    aria-label="Room code"
+                    maxLength={6}
+                  />
+                  <button className="secondary" type="button" onClick={openRoomFromCode}>Join</button>
                 </div>
-              </fieldset>
-              <fieldset>
-                <legend><span>05</span> How?</legend>
-                <div className="segmented" role="group" aria-label="Service preference">
-                  {["dine in", "takeout", "either"].map((option) => (
+              </details>
+
+              {error ? <p className="error" role="alert">{error}</p> : null}
+
+              <div className="step-nav">
+                <button className="primary" type="button" onClick={() => setSetupStep(1)}>Next</button>
+              </div>
+            </>
+          ) : null}
+
+          {setupStep === 1 ? (
+            <>
+              <header className="screen-head">
+                <h1>What sounds good?</h1>
+                <p>Tap anything that’s calling to you.</p>
+              </header>
+
+              <fieldset className="group">
+                <legend className="group-title">Cravings</legend>
+                <div className="chips">
+                  {[...CRAVING_OPTIONS, ...cravings.filter((craving) => !CRAVING_OPTIONS.includes(craving))].map((option) => (
                     <button
-                      type="button"
                       key={option}
-                      onClick={() => setService(option)}
-                      className={service === option ? "active" : ""}
-                      aria-pressed={service === option}
+                      type="button"
+                      className={cravings.includes(option) ? "chip on" : "chip"}
+                      onClick={() => setCravings((current) => toggleInList(current, option))}
+                      aria-pressed={cravings.includes(option)}
                     >
                       {option}
                     </button>
                   ))}
                 </div>
+                <div className="add-row">
+                  <input
+                    className="field"
+                    value={customCraving}
+                    onChange={(event) => setCustomCraving(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addCustomCraving();
+                      }
+                    }}
+                    placeholder="Something else"
+                    aria-label="Custom craving"
+                  />
+                  <button className="secondary" type="button" onClick={addCustomCraving}>Add</button>
+                </div>
               </fieldset>
-            </div>
 
-            <fieldset>
-              <legend><span>06</span> Pick tonight’s energy</legend>
-              <div className="vibe-grid">
-                {VIBES.map((option) => (
-                  <button
-                    type="button"
-                    key={option.value}
-                    onClick={() => setVibe(option.value)}
-                    className={vibe === option.value ? "vibe active" : "vibe"}
-                    aria-pressed={vibe === option.value}
-                  >
-                    <span aria-hidden="true">{option.symbol}</span>{option.label}
+              <fieldset className="group">
+                <legend className="group-title">Tonight feels</legend>
+                <div className="tiles">
+                  {VIBES.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      onClick={() => setVibe(option.value)}
+                      className={vibe === option.value ? "tile on" : "tile"}
+                      aria-pressed={vibe === option.value}
+                    >
+                      <strong>{option.label}</strong>
+                      <small>{option.value}</small>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="pair">
+                <fieldset className="group">
+                  <legend className="group-title">Budget</legend>
+                  <div className="segmented">
+                    {[1, 2, 3, 4].map((level) => (
+                      <button
+                        type="button"
+                        key={level}
+                        onClick={() => setBudget(level)}
+                        className={budget === level ? "on" : ""}
+                        aria-pressed={budget === level}
+                      >
+                        {"$".repeat(level)}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset className="group">
+                  <legend className="group-title">Eating</legend>
+                  <div className="segmented">
+                    {["dine in", "takeout", "either"].map((option) => (
+                      <button
+                        type="button"
+                        key={option}
+                        onClick={() => setService(option)}
+                        className={service === option ? "on" : ""}
+                        aria-pressed={service === option}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+
+              <div className="step-nav">
+                <button className="secondary" type="button" onClick={() => setSetupStep(0)}>Back</button>
+                <button className="primary" type="button" onClick={() => setSetupStep(2)}>Next</button>
+              </div>
+            </>
+          ) : null}
+
+          {setupStep === 2 ? (
+            <>
+              <header className="screen-head">
+                <h1>Anything we should respect?</h1>
+                <p>These are rules, not preferences. Nothing that breaks them makes the deck.</p>
+              </header>
+
+              <fieldset className="group">
+                <legend className="group-title">Dietary needs and allergies</legend>
+                <div className="chips">
+                  {DIETARY_OPTIONS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={dietary.includes(option) ? "chip on" : "chip"}
+                      onClick={() => setDietary((current) => toggleInList(current, option))}
+                      aria-pressed={dietary.includes(option)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                <p className="help">Always confirm allergens with the restaurant.</p>
+              </fieldset>
+
+              <fieldset className="group">
+                <legend className="group-title">Where to look</legend>
+                <div className="location">
+                  <div>
+                    <strong>Near you</strong>
+                    <span>{locationStatus}</span>
+                  </div>
+                  <button className={location ? "ready" : ""} type="button" onClick={requestLocation}>
+                    {location ? "Location added" : "Use my location"}
                   </button>
-                ))}
+                </div>
+              </fieldset>
+
+              {error ? <p className="error" role="alert">{error}</p> : null}
+
+              <div className="step-nav">
+                <button className="secondary" type="button" onClick={() => setSetupStep(1)}>Back</button>
+                <button className="primary" type="submit" disabled={loading}>
+                  {loading ? "Setting the table…" : remoteOnly ? "Create our room" : "Find our dinner"}
+                </button>
               </div>
-            </fieldset>
-
-            <div className="location-row">
-              <div>
-                <strong>Search near you</strong>
-                <span>{locationStatus}</span>
-              </div>
-              <button className={location ? "location-button ready" : "location-button"} type="button" onClick={requestLocation}>
-                <span aria-hidden="true">⌖</span> {location ? "Location added" : "Use my location"}
-              </button>
-            </div>
-
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-
-            <button className="primary-action" type="submit" disabled={loading}>
-              <span>
-                {loading
-                  ? "Setting the table…"
-                  : partySize > 1 && deviceMode === "remote"
-                    ? "Create our room"
-                    : "Find our dinner"}
-              </span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </form>
-        </section>
+            </>
+          ) : null}
+        </form>
       ) : null}
 
       {screen === "lobby" && room ? (
-        <section className="room-layout">
-          <div className="room-card">
-            <p className="eyebrow"><span>Separate-phone room</span></p>
-            <h1>{participantId ? "The room is ready." : "Pick your seat."}</h1>
-            <p className="room-intro">
+        <section className="screen">
+          <header className="screen-head">
+            <h1>{participantId ? "Send this to the table." : "Which one are you?"}</h1>
+            <p>
               {participantId
-                ? "Send the link to everyone. You can start swiping while they join."
-                : "Choose your name to join this dinner without seeing anyone else’s votes."}
+                ? "Everyone votes on their own phone. You can start before they join."
+                : "Pick your name. Nobody sees anyone else’s votes."}
             </p>
+          </header>
 
-            <div className="room-code-block">
+          <div className="room-code">
+            <div>
               <small>Room code</small>
               <strong>{room.code}</strong>
-              <button type="button" onClick={copyInviteLink}>{copyStatus}</button>
             </div>
-
-            <div className="room-roster">
-              {room.participants.map((participant) => (
-                <div className="room-person" key={`${participant.slot}-${participant.name}`}>
-                  <span className={participant.completed ? "complete" : participant.joined ? "joined" : ""}>
-                    {participant.completed ? "✓" : initials(participant.name)}
-                  </span>
-                  <div><strong>{participant.name}</strong><small>{participant.completed ? "votes in" : participant.joined ? "joined" : "waiting to join"}</small></div>
-                  {!participantId && !participant.joined ? (
-                    <button type="button" onClick={() => joinRemoteRoom(participant.slot)} disabled={loading}>That’s me</button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
-            {participantId ? (
-              <button className="primary-action" type="button" onClick={startRemoteVoting}>
-                <span>{participantSlot !== null && room.participants[participantSlot]?.completed ? "See group status" : `Start ${participantName}’s votes`}</span>
-                <span aria-hidden="true">→</span>
-              </button>
-            ) : null}
+            <button className="secondary" type="button" onClick={copyInviteLink}>{copyStatus}</button>
           </div>
+
+          <div className="roster">
+            {room.participants.map((participant, index) => (
+              <div className="roster-row" key={`${participant.slot}-${participant.name}`}>
+                <span className="person-dot" style={{ "--person": personColor(index) } as CSSProperties} />
+                <div>
+                  <strong>{participant.name}</strong>
+                  <small>{participant.completed ? "Votes in" : participant.joined ? "Joined" : "Not here yet"}</small>
+                </div>
+                {!participantId && !participant.joined ? (
+                  <button className="secondary" type="button" onClick={() => joinRemoteRoom(participant.slot)} disabled={loading}>That’s me</button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          {error ? <p className="error" role="alert">{error}</p> : null}
+          {participantId ? (
+            <div className="step-nav">
+              <button className="primary" type="button" onClick={startRemoteVoting}>
+                {participantSlot !== null && room.participants[participantSlot]?.completed ? "See who’s finished" : "Start swiping"}
+              </button>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
       {screen === "deck" && currentRestaurant ? (
-        <section className="deck-layout">
+        <section className="screen">
           {deviceMode === "shared" && handoff ? (
-            <div className="handoff-card">
-              <span className="handoff-icon" aria-hidden="true">↝</span>
-              <p className="eyebrow"><span>Keep the votes secret</span></p>
-              <h1>Pass the phone to<br />{currentPerson}</h1>
-              <p>The deck resets for each person. No peeking at anyone else’s passes.</p>
-              <button className="primary-action" type="button" onClick={() => setHandoff(false)}>
-                <span>I’m {currentPerson}</span><span aria-hidden="true">→</span>
-              </button>
+            <div className="handoff">
+              <p>Pass the phone to</p>
+              <h1>{currentPerson}</h1>
+              <p>The deck starts over. Nobody sees the last person’s votes.</p>
+              <div className="step-nav">
+                <button className="primary" type="button" onClick={() => setHandoff(false)}>
+                  I’m {currentPerson}
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <header className="deck-header">
-                <div>
-                  <p className="eyebrow"><span>{currentPerson} is choosing</span></p>
-                  <h1>Trust your first bite.</h1>
-                </div>
-                <div className="participant-stack" aria-label={`${deviceMode === "remote" ? (participantSlot ?? 0) + 1 : participantIndex + 1} of ${partySize} participants`}>
-                  {participantNames.map((name, index) => (
-                    <span
-                      key={`${name}-${index}`}
-                      className={
-                        index === (deviceMode === "remote" ? participantSlot : participantIndex)
-                          ? "current"
-                          : deviceMode === "remote"
-                            ? room?.participants[index]?.completed ? "done" : ""
-                            : index < participantIndex ? "done" : ""
-                      }
-                    >
-                      {initials(name)}
-                    </span>
-                  ))}
-                </div>
-              </header>
+              <div className="deck-top">
+                <span>
+                  {partySize > 1 ? <><strong>{currentPerson}</strong>, your turn. </> : null}
+                  {cardIndex + 1} of {restaurants.length}
+                </span>
+                {partySize > 1 ? (
+                  <div className="people" aria-label={`${deviceMode === "remote" ? (participantSlot ?? 0) + 1 : participantIndex + 1} of ${partySize} people`}>
+                    {participantNames.map((name, index) => (
+                      <span
+                        key={`${name}-${index}`}
+                        title={name}
+                        style={{ "--person": personColor(index) } as CSSProperties}
+                        className={
+                          index === (deviceMode === "remote" ? participantSlot : participantIndex)
+                            ? "current"
+                            : deviceMode === "remote"
+                              ? room?.participants[index]?.completed ? "done" : ""
+                              : index < participantIndex ? "done" : ""
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
-              <div className="deck-progress" aria-label={`Card ${cardIndex + 1} of ${restaurants.length}`}>
+              <div className="progress" aria-hidden="true">
                 <span style={{ width: `${progress}%` }} />
               </div>
 
-              <div className="card-stage">
-                {restaurants[cardIndex + 1] ? (
-                  <article className="restaurant-card card-behind" aria-hidden="true">
-                    <div className="food-art art-alt"><span /><span /><span /></div>
-                  </article>
-                ) : null}
+              <div className="stage">
+                {restaurants[cardIndex + 1] ? <article className="card behind" aria-hidden="true" /> : null}
                 <article
-                  className={`restaurant-card card-front ${drag.active ? "dragging" : ""}`}
+                  className={`card front ${drag.active ? "dragging" : ""}`}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
@@ -998,145 +1043,152 @@ export default function Home() {
                     transform: `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x / 18}deg)`,
                   }}
                 >
-                  <div className="food-art">
-                    <span /><span /><span />
-                    <div className="score-stamp"><strong>{currentRestaurant.score}</strong><small>fit</small></div>
-                    {drag.x > 35 ? <b className="swipe-stamp yes">INTO IT</b> : null}
-                    {drag.x < -35 ? <b className="swipe-stamp no">PASS</b> : null}
-                    {drag.y < -35 ? <b className="swipe-stamp love">LOVE</b> : null}
+                  {drag.x > 35 ? <b className="stamp yes">Into it</b> : null}
+                  {drag.x < -35 ? <b className="stamp no">Pass</b> : null}
+                  {drag.y < -35 ? <b className="stamp love">Love</b> : null}
+                  <div className="card-kicker">
+                    <span>{currentRestaurant.cuisine}</span>
+                    <span>{priceMarks(currentRestaurant.priceLevel)}</span>
                   </div>
-                  <div className="card-body">
-                    <div className="card-kicker">
-                      <span>{currentRestaurant.cuisine}</span>
-                      <span>{priceMarks(currentRestaurant.priceLevel)}</span>
-                    </div>
-                    <h2>{currentRestaurant.name}</h2>
-                    <p className="restaurant-meta">
-                      <strong>★ {currentRestaurant.rating || "New"}</strong>
-                      {currentRestaurant.reviewCount ? <span>{currentRestaurant.reviewCount.toLocaleString()} reviews</span> : null}
-                      {currentRestaurant.distanceKm !== null ? <span>{currentRestaurant.distanceKm} km</span> : null}
-                    </p>
-                    <p className="why-copy">{currentRestaurant.why}</p>
-                    <div className="order-strip">
-                      <small>Order direction</small>
-                      <p>{currentRestaurant.orderIdeas.join(" · ")}</p>
-                    </div>
-                    <div className="tag-row">
-                      {currentRestaurant.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}
-                    </div>
-                    <p className="address">{currentRestaurant.address}</p>
+                  <h2>{currentRestaurant.name}</h2>
+                  <p className="meta">
+                    <strong>★ {currentRestaurant.rating || "New"}</strong>
+                    {currentRestaurant.reviewCount ? <span>{currentRestaurant.reviewCount.toLocaleString()} reviews</span> : null}
+                    {currentRestaurant.distanceKm !== null ? <span>{currentRestaurant.distanceKm} km away</span> : null}
+                    {currentRestaurant.openNow === false ? <span>Closed now</span> : null}
+                  </p>
+                  <p className="why">{sentence(currentRestaurant.why)}</p>
+                  <div className="order">
+                    <small>Order</small>
+                    <ul>
+                      {currentRestaurant.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
+                    </ul>
+                  </div>
+                  <div className="card-foot">
+                    <span>{currentRestaurant.tags.slice(0, 3).join(", ")}</span>
+                    <span className="fit"><strong>{currentRestaurant.score}</strong> fit</span>
                   </div>
                 </article>
               </div>
 
-              <div className="swipe-actions" aria-label="Your reaction">
-                <button className="pass" type="button" onClick={() => castVote("pass")} aria-label="Pass" disabled={voteSubmitting}>
-                  <span aria-hidden="true">×</span><small>Pass</small>
+              <div className="actions" aria-label="Your reaction">
+                <button className="pass" type="button" onClick={() => castVote("pass")} disabled={voteSubmitting}>
+                  <span aria-hidden="true">×</span>Pass
                 </button>
-                <button className="love" type="button" onClick={() => castVote("love")} aria-label="Love this option" disabled={voteSubmitting}>
-                  <span aria-hidden="true">↑</span><small>Love</small>
+                <button className="love" type="button" onClick={() => castVote("love")} disabled={voteSubmitting}>
+                  <span aria-hidden="true">♥</span>Love
                 </button>
-                <button className="like" type="button" onClick={() => castVote("interested")} aria-label="Interested" disabled={voteSubmitting}>
-                  <span aria-hidden="true">♡</span><small>Into it</small>
+                <button className="like" type="button" onClick={() => castVote("interested")} disabled={voteSubmitting}>
+                  <span aria-hidden="true">✓</span>Into it
                 </button>
               </div>
-              <p className="gesture-help">Swipe left to pass · up to love · right if you’re into it</p>
+              <p className="hint">Swipe left to pass, right if you’re into it, up to love.</p>
               {meta ? (
-                <p className="data-note">
-                  {meta.source === "google" ? "Live nearby places" : "Sample restaurant deck"}
-                  <span>·</span>{meta.scoring === "jev" ? "ranked with Jev" : "locally ranked"}
+                <p className="hint">
+                  {meta.source === "google" ? "Live places near you" : "Sample restaurants"}
+                  {meta.scoring === "jev" ? ", ranked with Jev" : ""}
                 </p>
               ) : null}
+              {error ? <p className="error" role="alert">{error}</p> : null}
             </>
           )}
         </section>
       ) : null}
 
       {screen === "waiting" && room ? (
-        <section className="waiting-layout">
-          <div className="waiting-orbit" aria-hidden="true"><span /><span /><span /></div>
-          <p className="eyebrow"><span>Your votes are in</span></p>
-          <h1>Waiting on the<br />rest of the table.</h1>
-          <p>This page updates automatically. The result stays hidden until everyone finishes.</p>
-          <div className="waiting-roster">
-            {room.participants.map((participant) => (
-              <span className={participant.completed ? "done" : ""} key={`${participant.slot}-${participant.name}`}>
-                <b>{participant.completed ? "✓" : "…"}</b>{participant.name}
-              </span>
+        <section className="screen waiting">
+          <header className="screen-head">
+            <h1>Your votes are in.</h1>
+            <p>This page updates on its own. The result stays hidden until everyone finishes.</p>
+          </header>
+          <div className="roster">
+            {room.participants.map((participant, index) => (
+              <div className="roster-row" key={`${participant.slot}-${participant.name}`}>
+                <span className="person-dot" style={{ "--person": personColor(index) } as CSSProperties} />
+                <div><strong>{participant.name}</strong></div>
+                <span className={participant.completed ? "status done" : "status"}>
+                  {participant.completed ? "Done" : "Still swiping"}
+                </span>
+              </div>
             ))}
           </div>
-          <small>Room {room.code} · open for six hours</small>
+          <p className="hint">Room {room.code} stays open for six hours.</p>
         </section>
       ) : null}
 
       {screen === "result" && winner ? (
-        <section className="result-layout">
-          <div className="confetti-field" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
-          <p className="eyebrow"><span>Decision made</span></p>
-          <h1>We’re eating<br /><em>{winner.name}.</em></h1>
-          <p className="result-lede">
-            {winnerSupport} of {partySize} {partySize === 1 ? "person is" : "people are"} into it.
-            The group chat may now rest.
-          </p>
-          <div className="result-ticket">
-            <div className="result-ticket-top">
-              <div><span>{winner.cuisine}</span><h2>{winner.name}</h2></div>
-              <div className="score-stamp result-score"><strong>{winner.score}</strong><small>fit</small></div>
+        <section className="screen">
+          <header className="screen-head">
+            <h1>Dinner’s decided.</h1>
+            <p>
+              {partySize === 1
+                ? "You were into it. That’s all it takes."
+                : `${winnerSupport} of ${partySize} people are into it. The group chat can rest.`}
+            </p>
+          </header>
+
+          <article className="panel">
+            <p className="lead">{winner.cuisine}</p>
+            <h2>{winner.name}</h2>
+            {supporters.length > 1 ? (
+              <div className="supporters">
+                {supporters.map((name) => (
+                  <span key={name}>
+                    <i className="person-dot" style={{ "--person": personColor(participantNames.indexOf(name)) } as CSSProperties} />
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="facts">
+              <div><small>Rating</small><strong>★ {winner.rating || "New"}</strong></div>
+              <div><small>Price</small><strong>{priceMarks(winner.priceLevel)}</strong></div>
+              <div><small>Distance</small><strong>{winner.distanceKm === null ? "Nearby" : `${winner.distanceKm} km`}</strong></div>
             </div>
-            <div className="result-facts">
-              <span><small>rating</small>★ {winner.rating || "New"}</span>
-              <span><small>price</small>{priceMarks(winner.priceLevel)}</span>
-              <span><small>distance</small>{winner.distanceKm === null ? "nearby" : `${winner.distanceKm} km`}</span>
-            </div>
-            <div className="order-strip result-order">
+            <div className="order">
               <small>Start with</small>
-              <p>{winner.orderIdeas.join(" · ")}</p>
+              <ul>
+                {winner.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
+              </ul>
             </div>
-            <p className="dietary-warning">{meta?.dietaryNotice}</p>
-            <div className="result-links">
-              {winner.mapsUrl ? <a href={winner.mapsUrl} target="_blank" rel="noreferrer">Open in Maps ↗</a> : null}
-              {winner.websiteUrl ? <a href={winner.websiteUrl} target="_blank" rel="noreferrer">Restaurant site ↗</a> : null}
-              {!winner.mapsUrl && !winner.websiteUrl ? <span>Sample result · add location for live links</span> : null}
+            {meta?.dietaryNotice ? <p className="note">{meta.dietaryNotice}</p> : null}
+            <div className="links">
+              {winner.mapsUrl ? <a href={winner.mapsUrl} target="_blank" rel="noreferrer">Directions</a> : null}
+              {winner.websiteUrl ? <a href={winner.websiteUrl} target="_blank" rel="noreferrer">Website</a> : null}
+              {!winner.mapsUrl && !winner.websiteUrl ? <span>Sample result. Share your location for directions and a website.</span> : null}
             </div>
+          </article>
+
+          <div className="after">
+            <button className="secondary" type="button" onClick={reset}>Plan another dinner</button>
           </div>
-          <button className="secondary-action" type="button" onClick={reset}>Run it back</button>
         </section>
       ) : null}
 
       {screen === "fallback" ? (
-        <section className="fallback-layout">
-          <div className="fallback-copy">
-            <p className="eyebrow"><span>No restaurant consensus</span></p>
-            <h1>Okay. It’s a<br /><em>girl dinner.</em></h1>
-            <p>
-              Nobody has to settle. Make a light plate at home, put on something good,
-              and enjoy the fact that the decision is over.
-            </p>
-          </div>
-          <article className="plate-card">
-            <div className="plate-illustration" aria-hidden="true">
-              <span className="plate-main" /><span className="plate-small one" /><span className="plate-small two" />
-            </div>
-            <div className="plate-content">
-              <span className="step-label">Tonight’s plate · {selectedPlate.time}</span>
-              <h2>{selectedPlate.title}</h2>
-              <ul>
-                {selectedPlate.items.map((item) => <li key={item}><span>+</span>{item}</li>)}
-              </ul>
-              <p>{selectedPlate.note}</p>
-              {dietary.length ? <small>Keep it compatible with: {dietary.join(", ")}.</small> : null}
-            </div>
+        <section className="screen">
+          <header className="screen-head">
+            <h1>It’s a girl dinner.</h1>
+            <p>No restaurant won the table tonight. Make a light plate at home and enjoy that the deciding is over.</p>
+          </header>
+
+          <article className="panel">
+            <p className="lead">Ready in {selectedPlate.time}</p>
+            <h2>{selectedPlate.title}</h2>
+            <ul className="plate-items">
+              {selectedPlate.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+            <p className="instructions">{selectedPlate.note}</p>
+            {dietary.length ? <p className="note">Kept compatible with {dietary.join(", ")}.</p> : null}
           </article>
-          <div className="fallback-actions">
-            <button className="primary-action" type="button" onClick={reset}><span>Try another search</span><span>→</span></button>
+
+          <div className="after">
+            <button className="secondary" type="button" onClick={reset}>Try another search</button>
           </div>
         </section>
       ) : null}
 
-      <footer>
-        <span>Made for the “I don’t know, what do you want?” hour.</span>
-        <span>Girl Dinner · {new Date().getFullYear()}</span>
-      </footer>
+      <footer>Made for the “I don’t know, what do you want?” hour.</footer>
     </main>
   );
 }
