@@ -140,19 +140,6 @@ function roomError(message: string | undefined) {
   return "The dinner room could not be updated.";
 }
 
-async function broadcastRoomChange(room: DinnerRoomRow) {
-  const client = getSupabaseAdmin();
-  const channel = client.channel(`room:${room.realtime_token}`);
-
-  try {
-    await channel.httpSend("room_changed", { revision: Number(room.revision) });
-  } catch (error) {
-    console.error("Could not broadcast dinner room update", error);
-  } finally {
-    await client.removeChannel(channel);
-  }
-}
-
 export async function createRoom(input: CreateRoomInput) {
   const client = getSupabaseAdmin();
   const now = Date.now();
@@ -209,7 +196,6 @@ export async function joinRoom(code: string, slot: number) {
   if (error || !data) return { error: roomError(error?.message) } as const;
 
   const room = data as DinnerRoomRow;
-  await broadcastRoomChange(room);
   const participant = room.participants[slot];
   if (!participant) return { error: "That seat does not exist." } as const;
 
@@ -238,6 +224,5 @@ export async function recordVote(
   if (error || !data) return { error: roomError(error?.message) } as const;
 
   const room = data as DinnerRoomRow;
-  await broadcastRoomChange(room);
   return { room: publicRoom(room) } as const;
 }
