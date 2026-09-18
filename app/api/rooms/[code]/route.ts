@@ -16,10 +16,18 @@ const VALID_VOTES: RoomVote[] = ["pass", "interested", "love"];
 
 export async function GET(_request: Request, context: RouteContext) {
   const { code } = await context.params;
-  const room = getRoom(code);
-  if (!room) return Response.json({ error: "Room not found or expired." }, { status: 404 });
+  try {
+    const room = await getRoom(code);
+    if (!room) return Response.json({ error: "Room not found or expired." }, { status: 404 });
 
-  return Response.json({ room }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ room }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("Could not load dinner room", error);
+    return Response.json(
+      { error: error instanceof Error ? error.message : "The room could not be loaded." },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -36,7 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
     if (!Number.isInteger(input.slot) || typeof input.slot !== "number") {
       return Response.json({ error: "Choose an available person." }, { status: 400 });
     }
-    const result = joinRoom(code, input.slot);
+    const result = await joinRoom(code, input.slot);
     if ("error" in result) return Response.json(result, { status: 409 });
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   }
@@ -51,7 +59,7 @@ export async function POST(request: Request, context: RouteContext) {
       return Response.json({ error: "The vote is incomplete." }, { status: 400 });
     }
 
-    const result = recordVote(
+    const result = await recordVote(
       code,
       input.participantId,
       input.restaurantId,
