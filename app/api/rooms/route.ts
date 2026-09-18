@@ -29,16 +29,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Recommendation details are missing." }, { status: 400 });
   }
 
-  const result = createRoom({
-    names: input.names,
-    restaurants: input.restaurants,
-    cravings: Array.isArray(input.cravings) ? input.cravings.slice(0, 12) : [],
-    dietary: Array.isArray(input.dietary) ? input.dietary.slice(0, 12) : [],
-    meta: input.meta,
-  });
+  try {
+    const result = await createRoom({
+      names: input.names,
+      restaurants: input.restaurants,
+      cravings: Array.isArray(input.cravings) ? input.cravings.slice(0, 12) : [],
+      dietary: Array.isArray(input.dietary) ? input.dietary.slice(0, 12) : [],
+      meta: input.meta,
+    });
 
-  return Response.json(result, {
-    status: 201,
-    headers: { "Cache-Control": "no-store" },
-  });
+    return Response.json(result, {
+      status: 201,
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error) {
+    console.error("Could not create dinner room", error);
+    return Response.json(
+      { error: error instanceof Error ? error.message : "The room could not be created." },
+      { status: 503 },
+    );
+  }
 }
