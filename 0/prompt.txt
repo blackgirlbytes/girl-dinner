@@ -1,38 +1,3 @@
-okay great..lets take a look at the jev documentation ([https://docs.typesafe.ai/introduction](https://docs.typesafe.ai/introduction))..we're going to build with it..for context we're building girl-dinner. This application does the following:&#x20;
-
-
-
-it helps people from 1 person to a group of 8 decide on what they want to eat together. If it's one person..it just helps them decide what they should eat by themselves..if it's 2 people it could be best friends or a couple (like gf, bf) who want to know what type of food they should eat. then the more people you add (up to 8)..it includes them as well.
-
-
-
-It should get criteria from people like what theyre interested in eating, dietary restrictions, people's locations..it can use like map location /gps , and find restaurants plus the menu in the area that will fit. Jev will be the one that helps make the decision based on its scoring.&#x20;
-
-
-
-But before we build this all out..let's figure out:
-
-1. how to use jev (please share that info with me even though youre the one executing)
-2. do you need anything from me..such as api key etc..or are you able to grab that on your own
-
----
-
-oh last requirement if no decision is made then we can decide that they need to eat a girl dinner..which could be just make a light plate at home..and give them suggestions for that.
-
----
-
-<in-app-browser-context source="ambient-ui-state">
-This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
-# In app browser:
-- The user has the in-app browser open with 1 tab.
-- Current URL: https://console.typesafe.ai/login?returnTo=%2Fsettings%2Fkeys
-</in-app-browser-context>
-
-## My request:
-in the end would the users have multiple options maybe like tinder style that they can swipe through and then come to a final decision
-
----
-
 <in-app-browser-context source="ambient-ui-state">
 This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
 # In app browser:
