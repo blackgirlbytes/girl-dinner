@@ -1,5 +1,6 @@
 "use client";
 
+import { createClient } from "@supabase/supabase-js";
 import { FormEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type Location = { latitude: number; longitude: number };
@@ -50,6 +51,7 @@ type PublicDinnerRoom = {
   resultRestaurantId: string | null;
   resultSupport: number;
   fallback: boolean;
+  revision: number;
 };
 
 const CRAVING_OPTIONS = [
@@ -150,6 +152,7 @@ export default function Home() {
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
   const [roomCode, setRoomCode] = useState("");
   const [room, setRoom] = useState<PublicDinnerRoom | null>(null);
+  const [realtimeToken, setRealtimeToken] = useState("");
   const [participantId, setParticipantId] = useState("");
   const [participantSlot, setParticipantSlot] = useState<number | null>(null);
   const [participantName, setParticipantName] = useState("");
@@ -208,10 +211,16 @@ export default function Home() {
         applyRemoteRoom(data.room);
         const saved = window.localStorage.getItem(`girl-dinner-room-${code}`);
         if (saved) {
-          const identity = JSON.parse(saved) as { participantId?: string; name?: string; slot?: number };
+          const identity = JSON.parse(saved) as {
+            participantId?: string;
+            name?: string;
+            slot?: number;
+            realtimeToken?: string;
+          };
           setParticipantId(identity.participantId ?? "");
           setParticipantName(identity.name ?? "");
           setParticipantSlot(typeof identity.slot === "number" ? identity.slot : null);
+          setRealtimeToken(identity.realtimeToken ?? "");
         }
         if (data.room.status !== "complete") setScreen("lobby");
       } catch (caught) {
@@ -239,10 +248,52 @@ export default function Home() {
       } catch {
         // A later poll will retry while the room is active.
       }
-    }, 2000);
+    }, 30000);
 
     return () => window.clearInterval(interval);
   }, [applyRemoteRoom, room?.status, roomCode]);
+
+  useEffect(() => {
+    if (!roomCode || !realtimeToken || room?.status === "complete") return;
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+
+    const client = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    let active = true;
+
+    async function refreshRoom() {
+      try {
+        const response = await fetch(`/api/rooms/${roomCode}`, { cache: "no-store" });
+        if (!response.ok || !active) return;
+        const data = (await response.json()) as { room?: PublicDinnerRoom };
+        if (data.room) applyRemoteRoom(data.room);
+      } catch {
+        // Supabase reconnects automatically; the slower refresh remains as a fallback.
+      }
+    }
+
+    const channel = client
+      .channel(`room:${realtimeToken}`)
+      .on("broadcast", { event: "room_changed" }, () => void refreshRoom())
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void refreshRoom();
+      });
+
+    function refreshVisibleRoom() {
+      if (document.visibilityState === "visible") void refreshRoom();
+    }
+
+    document.addEventListener("visibilitychange", refreshVisibleRoom);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", refreshVisibleRoom);
+      void client.removeChannel(channel);
+    };
+  }, [applyRemoteRoom, realtimeToken, room?.status, roomCode]);
 
   function updatePartySize(nextSize: number) {
     setPartySize(nextSize);
@@ -353,9 +404,10 @@ export default function Home() {
         const roomData = (await roomResponse.json()) as {
           room?: PublicDinnerRoom;
           participantId?: string;
+          realtimeToken?: string;
           error?: string;
         };
-        if (!roomResponse.ok || !roomData.room || !roomData.participantId) {
+        if (!roomResponse.ok || !roomData.room || !roomData.participantId || !roomData.realtimeToken) {
           throw new Error(roomData.error ?? "The room could not be created.");
         }
 
@@ -363,6 +415,7 @@ export default function Home() {
           participantId: roomData.participantId,
           name: participantNames[0],
           slot: 0,
+          realtimeToken: roomData.realtimeToken,
         };
         window.localStorage.setItem(
           `girl-dinner-room-${roomData.room.code}`,
@@ -372,6 +425,7 @@ export default function Home() {
         setParticipantId(hostIdentity.participantId);
         setParticipantName(hostIdentity.name);
         setParticipantSlot(0);
+        setRealtimeToken(hostIdentity.realtimeToken);
         applyRemoteRoom(roomData.room);
         setScreen("lobby");
       } else {
@@ -397,18 +451,20 @@ export default function Home() {
       const data = (await response.json()) as {
         room?: PublicDinnerRoom;
         participantId?: string;
+        realtimeToken?: string;
         error?: string;
       };
-      if (!response.ok || !data.room || !data.participantId) {
+      if (!response.ok || !data.room || !data.participantId || !data.realtimeToken) {
         throw new Error(data.error ?? "Could not join the room.");
       }
 
       const name = data.room.participants[slot]?.name ?? "Guest";
-      const identity = { participantId: data.participantId, name, slot };
+      const identity = { participantId: data.participantId, name, slot, realtimeToken: data.realtimeToken };
       window.localStorage.setItem(`girl-dinner-room-${roomCode}`, JSON.stringify(identity));
       setParticipantId(identity.participantId);
       setParticipantName(identity.name);
       setParticipantSlot(slot);
+      setRealtimeToken(identity.realtimeToken);
       applyRemoteRoom(data.room);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not join the room.");
@@ -588,6 +644,7 @@ export default function Home() {
     setDeviceMode("shared");
     setRoomCode("");
     setRoom(null);
+    setRealtimeToken("");
     setParticipantId("");
     setParticipantSlot(null);
     setParticipantName("");
