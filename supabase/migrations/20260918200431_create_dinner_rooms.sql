@@ -141,6 +141,7 @@ declare
   v_result_restaurant_id text;
   v_result_support integer := 0;
   v_fallback boolean := false;
+  v_vote_count integer;
   v_completed_at bigint := floor(extract(epoch from clock_timestamp()) * 1000)::bigint;
 begin
   if p_vote not in ('pass', 'interested', 'love') then
@@ -186,7 +187,10 @@ begin
   );
   v_participants := v_room.participants;
 
-  if jsonb_object_length(v_votes -> p_participant_id) >= jsonb_array_length(v_room.restaurants) then
+  select count(*) into v_vote_count
+  from jsonb_object_keys(v_votes -> p_participant_id);
+
+  if v_vote_count >= jsonb_array_length(v_room.restaurants) then
     v_participants := jsonb_set(
       v_participants,
       array[v_participant_index::text, 'completedAt'],
