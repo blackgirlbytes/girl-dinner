@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { CSSProperties, FormEvent, PointerEvent, useCallback, useEffect, useMemo, useState } from "react";
+import RestaurantPhoto from "./restaurant-photo";
 
 type Location = { latitude: number; longitude: number };
 type Vote = "pass" | "interested" | "love";
@@ -1067,6 +1068,9 @@ export default function Home() {
                   {drag.x > 35 ? <b className="stamp yes">Into it</b> : null}
                   {drag.x < -35 ? <b className="stamp no">Pass</b> : null}
                   {drag.y < -35 ? <b className="stamp love">Love</b> : null}
+                  {meta?.source === "google" ? (
+                    <RestaurantPhoto key={currentRestaurant.id} placeId={currentRestaurant.id} name={currentRestaurant.name} />
+                  ) : null}
                   <div className="card-kicker">
                     <span>{currentRestaurant.cuisine}</span>
                     <span>{priceMarks(currentRestaurant.priceLevel)}</span>
@@ -1162,6 +1166,9 @@ export default function Home() {
           </header>
 
           <article className="panel">
+            {meta?.source === "google" ? (
+              <RestaurantPhoto key={winner.id} placeId={winner.id} name={winner.name} />
+            ) : null}
             <p className="lead">{winner.cuisine}</p>
             <h2>{winner.name}</h2>
             {supporters.length > 1 ? (
