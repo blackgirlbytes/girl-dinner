@@ -694,6 +694,31 @@ a {
   transition: none;
 }
 
+.restaurant-photo {
+  margin: 0 0 18px;
+}
+
+.restaurant-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.restaurant-photo figcaption {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.restaurant-photo a {
+  text-underline-offset: 2px;
+}
+
 .card-kicker {
   display: flex;
   justify-content: space-between;
