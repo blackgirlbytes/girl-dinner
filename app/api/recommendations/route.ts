@@ -229,7 +229,7 @@ async function fetchNearbyRestaurants(request: RecommendationRequest) {
   const location = request.location;
   if (!apiKey || !location) return null;
 
-  const radius = clamp((request.radiusKm ?? 5) * 1000, 500, 20000);
+  const radius = (request.radiusKm ?? 10) * 1000;
   const response = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
     method: "POST",
     headers: {
@@ -292,7 +292,7 @@ async function fetchNearbyRestaurants(request: RecommendationRequest) {
         reviewCount: place.userRatingCount ?? 0,
         priceLevel: PRICE_LEVELS[place.priceLevel ?? ""] ?? 2,
         address: place.formattedAddress ?? "Address unavailable",
-        distanceKm: distanceKm === null ? null : Number(distanceKm.toFixed(1)),
+        distanceKm,
         openNow: place.regularOpeningHours?.openNow ?? null,
         tags: [cuisine.toLowerCase(), "nearby"],
         orderIdeas: ideasForCuisine(cuisine),
@@ -303,8 +303,10 @@ async function fetchNearbyRestaurants(request: RecommendationRequest) {
         why: "",
       };
     })
+    .filter((restaurant) => restaurant.distanceKm !== null && restaurant.distanceKm <= radius / 1000)
     .filter((restaurant) => restaurant.openNow !== false)
     .filter((restaurant) => restaurant.priceLevel <= budget)
+    .map((restaurant) => ({ ...restaurant, distanceKm: Number(restaurant.distanceKm!.toFixed(1)) }))
     .slice(0, 10);
 }
 
@@ -395,6 +397,16 @@ export async function POST(incoming: Request) {
     return NextResponse.json({ error: "Send preferences as JSON." }, { status: 400 });
   }
 
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    return NextResponse.json({ error: "Send preferences as a JSON object." }, { status: 400 });
+  }
+
+  const radiusKm = request.radiusKm === undefined ? 10 : request.radiusKm;
+  if (typeof radiusKm !== "number" || !Number.isFinite(radiusKm) || radiusKm < 0.5 || radiusKm > 50) {
+    return NextResponse.json({ error: "Search distance must be between 0.5 and 50 km." }, { status: 400 });
+  }
+  request.radiusKm = radiusKm;
+
   const partySize = request.partySize ?? 1;
   if (!Number.isInteger(partySize) || partySize < 1 || partySize > 8) {
     return NextResponse.json({ error: "Party size must be between 1 and 8." }, { status: 400 });
@@ -406,13 +418,14 @@ export async function POST(incoming: Request) {
 
   try {
     restaurants = await fetchNearbyRestaurants(request);
-    if (restaurants?.length) source = "google";
+    if (restaurants !== null) source = "google";
   } catch {
     notices.push("Live restaurant search is unavailable, so sample picks are shown.");
   }
 
-  if (!restaurants?.length) {
+  if (restaurants === null) {
     restaurants = SAMPLE_RESTAURANTS
+      .filter((restaurant) => restaurant.distanceKm !== null && restaurant.distanceKm <= radiusKm)
       .filter((restaurant) => restaurant.priceLevel <= (request.budget ?? 4))
       .map((restaurant) => ({
         ...restaurant,
