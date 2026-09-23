@@ -106,10 +106,6 @@ function toggleInList(list: string[], value: string) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
-function sentence(text: string) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 function personColor(index: number) {
   return `var(--p${(Math.max(0, index) % 8) + 1})`;
 }
