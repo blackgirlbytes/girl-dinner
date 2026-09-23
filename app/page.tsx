@@ -1082,13 +1082,26 @@ export default function Home() {
                     {currentRestaurant.distanceKm !== null ? <span>{currentRestaurant.distanceKm} km away</span> : null}
                     {currentRestaurant.openNow === false ? <span>Closed now</span> : null}
                   </p>
-                  <p className="why">{sentence(currentRestaurant.why)}</p>
-                  <div className="order">
-                    <small>Order</small>
-                    <ul>
-                      {currentRestaurant.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
-                    </ul>
-                  </div>
+                  <p className="why">{currentRestaurant.why}</p>
+                  {meta?.source === "sample" && currentRestaurant.orderIdeas.length > 0 ? (
+                    <div className="order">
+                      <small>Sample dishes</small>
+                      <ul>
+                        {currentRestaurant.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="order" onPointerDown={(event) => event.stopPropagation()}>
+                      <small>Explore this restaurant</small>
+                      {currentRestaurant.websiteUrl ? (
+                        <a href={currentRestaurant.websiteUrl} target="_blank" rel="noreferrer">Restaurant website ↗</a>
+                      ) : null}
+                      {currentRestaurant.mapsUrl ? (
+                        <p><a href={currentRestaurant.mapsUrl} target="_blank" rel="noreferrer">Details on Google Maps ↗</a></p>
+                      ) : null}
+                      {!currentRestaurant.websiteUrl && !currentRestaurant.mapsUrl ? <p>Menu details aren’t available yet.</p> : null}
+                    </div>
+                  )}
                   <div className="card-foot">
                     <span>{currentRestaurant.tags.slice(0, 3).join(", ")}</span>
                     <span className="fit"><strong>{currentRestaurant.score}</strong> fit</span>
@@ -1170,15 +1183,18 @@ export default function Home() {
               <div><small>Price</small><strong>{priceMarks(winner.priceLevel)}</strong></div>
               <div><small>Distance</small><strong>{winner.distanceKm === null ? "Nearby" : `${winner.distanceKm} km`}</strong></div>
             </div>
-            <div className="order">
-              <small>Start with</small>
-              <ul>
-                {winner.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
-              </ul>
-            </div>
+            <p className="why">{winner.why}</p>
+            {meta?.source === "sample" && winner.orderIdeas.length > 0 ? (
+              <div className="order">
+                <small>Sample dishes</small>
+                <ul>
+                  {winner.orderIdeas.map((idea) => <li key={idea}>{idea}</li>)}
+                </ul>
+              </div>
+            ) : null}
             {meta?.dietaryNotice ? <p className="note">{meta.dietaryNotice}</p> : null}
             <div className="links">
-              {winner.mapsUrl ? <a href={winner.mapsUrl} target="_blank" rel="noreferrer">Directions</a> : null}
+              {winner.mapsUrl ? <a href={winner.mapsUrl} target="_blank" rel="noreferrer">Google Maps ↗</a> : null}
               {winner.websiteUrl ? <a href={winner.websiteUrl} target="_blank" rel="noreferrer">Website</a> : null}
               {!winner.mapsUrl && !winner.websiteUrl ? <span>Sample result. Share your location for directions and a website.</span> : null}
             </div>
