@@ -132,6 +132,7 @@ export default function Home() {
   const [cravings, setCravings] = useState<string[]>(["comfort food"]);
   const [dietary, setDietary] = useState<string[]>([]);
   const [budget, setBudget] = useState(2);
+  const [radiusKm, setRadiusKm] = useState(10);
   const [vibe, setVibe] = useState(VIBES[0].value);
   const [service, setService] = useState("either");
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("shared");
@@ -363,7 +364,7 @@ export default function Home() {
           budget,
           vibe,
           service,
-          radiusKm: 6,
+          radiusKm,
           location,
         }),
       });
@@ -376,7 +377,7 @@ export default function Home() {
 
       if (!response.ok) throw new Error(data.error ?? "Dinner search failed.");
       if (!data.restaurants?.length) {
-        setScreen("fallback");
+        setError(`No matches within ${radiusKm} km for these preferences. Try a wider distance or a different budget.`);
         return;
       }
 
@@ -927,6 +928,30 @@ export default function Home() {
                     {location ? "Location added" : "Use my location"}
                   </button>
                 </div>
+              </fieldset>
+
+              <fieldset className="group" aria-describedby="distance-help">
+                <legend className="group-title">How far would you go?</legend>
+                <div className="chips">
+                  {[2, 5, 10, 20, 50].map((distance) => (
+                    <button
+                      key={distance}
+                      type="button"
+                      className={radiusKm === distance ? "chip on" : "chip"}
+                      onClick={() => {
+                        setRadiusKm(distance);
+                        setError("");
+                      }}
+                      aria-pressed={radiusKm === distance}
+                    >
+                      {distance} km
+                    </button>
+                  ))}
+                </div>
+                <p className="help" id="distance-help">
+                  Within {radiusKm} km (about {Math.round(radiusKm / 1.609344)} miles) of your location, measured in a straight line. Driving distance may be longer.
+                  {!location ? " Share your location above for real nearby picks." : ""}
+                </p>
               </fieldset>
 
               {error ? <p className="error" role="alert">{error}</p> : null}
