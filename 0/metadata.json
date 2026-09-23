@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "01M35VVPJ7VVE6G86EDQXH4WW5",
+  "session_id": "01a0cba1-3028-7920-96b8-1757d8a357e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-23T00:50:12.912696Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/api/restaurant-photo/route.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-astra",
+  "turn_id": "c8ca5a7e16e9",
+  "checkpoint_transcript_start": 411,
+  "transcript_lines_at_start": 411,
+  "compact_transcript_start": 54,
+  "token_usage": {
+    "input_tokens": 10933,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 343936,
+    "output_tokens": 1078,
+    "api_call_count": 3
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-23T00:50:12.840475Z",
+    "agent_lines": 66,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 66,
+    "total_lines_changed": 66,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 11,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/launch.json": 11
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+okay also some of the food descriptions or restaurant descriptions seemt he same or generic
+
+---
+
+can it pull images from the restauraunt..if no image exists then dont show an image
