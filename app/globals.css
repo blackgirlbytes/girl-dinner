@@ -652,6 +652,7 @@ a {
 
 .stage {
   position: relative;
+  display: grid;
   flex: 1;
   min-height: 460px;
 }
@@ -678,6 +679,9 @@ a {
 }
 
 .card.front {
+  position: relative;
+  inset: auto;
+  min-width: 0;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -722,6 +726,17 @@ a {
   font-size: 1.05rem;
   line-height: 1.5;
   max-width: 30ch;
+  overflow-wrap: anywhere;
+}
+
+.card .order a {
+  display: inline-block;
+  padding: 6px 0;
+  text-underline-offset: 3px;
+}
+
+.card .order p {
+  margin: 0;
 }
 
 .order {
