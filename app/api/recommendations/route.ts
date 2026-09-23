@@ -44,6 +44,7 @@ type GooglePlace = {
   userRatingCount?: number;
   priceLevel?: string;
   primaryTypeDisplayName?: { text?: string };
+  editorialSummary?: { text?: string };
   regularOpeningHours?: { openNow?: boolean };
   googleMapsUri?: string;
   websiteUri?: string;
@@ -143,20 +144,6 @@ const SAMPLE_RESTAURANTS: Restaurant[] = [
   },
 ];
 
-const ORDER_IDEAS: Record<string, string[]> = {
-  chinese: ["Noodles", "Vegetable dumplings", "Cucumber salad"],
-  japanese: ["Ramen or udon", "Gyoza", "Edamame"],
-  mexican: ["Tacos", "Chips and salsa", "Elote"],
-  thai: ["Curry", "Drunken noodles", "Fresh rolls"],
-  indian: ["A house curry", "Biryani", "Naan"],
-  italian: ["A seasonal pasta", "House salad", "Tiramisu"],
-  pizza: ["A signature pie", "Roasted vegetables", "Something sweet"],
-  mediterranean: ["Hummus and pita", "A grain bowl", "Falafel"],
-  korean: ["Bibimbap", "Tteokbokki", "Vegetable pancakes"],
-  vietnamese: ["Pho", "Summer rolls", "Banh mi"],
-  default: ["A house favorite", "A vegetable side", "Something to share"],
-};
-
 const PRICE_LEVELS: Record<string, number> = {
   PRICE_LEVEL_FREE: 1,
   PRICE_LEVEL_INEXPENSIVE: 1,
@@ -193,14 +180,6 @@ function normalizeCuisine(place: GooglePlace) {
     : "Restaurant";
 }
 
-function ideasForCuisine(cuisine: string) {
-  const normalized = cuisine.toLowerCase();
-  const key = Object.keys(ORDER_IDEAS).find(
-    (entry) => entry !== "default" && normalized.includes(entry),
-  );
-  return ORDER_IDEAS[key ?? "default"];
-}
-
 function localScore(restaurant: Restaurant, request: RecommendationRequest) {
   const words = (request.cravings ?? []).map((word) => word.toLowerCase());
   const searchable = `${restaurant.cuisine} ${restaurant.tags.join(" ")} ${restaurant.orderIdeas.join(" ")}`.toLowerCase();
@@ -212,16 +191,15 @@ function localScore(restaurant: Restaurant, request: RecommendationRequest) {
   return Math.round(ratingScore + reviewScore + cravingScore + distanceScore);
 }
 
-function buildWhy(restaurant: Restaurant, request: RecommendationRequest) {
-  const craving = request.cravings?.find((entry) => {
-    const text = `${restaurant.cuisine} ${restaurant.tags.join(" ")} ${restaurant.orderIdeas.join(" ")}`;
-    return text.toLowerCase().includes(entry.toLowerCase());
-  });
-  const rating = restaurant.rating >= 4.6 ? "highly rated" : "well liked";
-  const proximity = restaurant.distanceKm !== null && restaurant.distanceKm < 2.5 ? "close by" : "within range";
+function describePlace(place: GooglePlace) {
+  // Google editorial summaries must be displayed exactly as supplied.
+  if (place.editorialSummary?.text?.trim()) return place.editorialSummary.text;
 
-  if (craving) return `${rating}, ${proximity}, and a strong match for “${craving}.”`;
-  return `${rating} and ${proximity}, with a menu style that fits a ${request.vibe || "flexible"} night.`;
+  const name = place.displayName?.text?.trim() || "This restaurant";
+  const address = place.formattedAddress?.trim();
+  return address
+    ? `${name} is at ${address}. A restaurant description isn't available yet.`
+    : `A description for ${name} isn't available yet. Check its listing for more details.`;
 }
 
 async function fetchNearbyRestaurants(request: RecommendationRequest) {
@@ -244,6 +222,7 @@ async function fetchNearbyRestaurants(request: RecommendationRequest) {
         "places.userRatingCount",
         "places.priceLevel",
         "places.primaryTypeDisplayName",
+        "places.editorialSummary",
         "places.regularOpeningHours.openNow",
         "places.googleMapsUri",
         "places.websiteUri",
@@ -295,12 +274,12 @@ async function fetchNearbyRestaurants(request: RecommendationRequest) {
         distanceKm,
         openNow: place.regularOpeningHours?.openNow ?? null,
         tags: [cuisine.toLowerCase(), "nearby"],
-        orderIdeas: ideasForCuisine(cuisine),
+        orderIdeas: [],
         mapsUrl: place.googleMapsUri ?? null,
         websiteUrl: place.websiteUri ?? null,
         score: 0,
         confidence: null,
-        why: "",
+        why: describePlace(place),
       };
     })
     .filter((restaurant) => restaurant.distanceKm !== null && restaurant.distanceKm <= radius / 1000)
@@ -355,6 +334,7 @@ async function scoreWithJev(
       priceLevel: restaurant.priceLevel,
       distanceKm: restaurant.distanceKm,
       tags: restaurant.tags,
+      description: restaurant.why,
       representativeOrderIdeas: restaurant.orderIdeas,
     })),
   };
@@ -383,7 +363,6 @@ async function scoreWithJev(
       ...restaurant,
       score: Math.round(jevScore === null ? baseline : jevScore * 0.8 + baseline * 0.2),
       confidence: answer?.confidence ?? null,
-      why: buildWhy(restaurant, request),
     };
   });
 }
@@ -426,16 +405,16 @@ export async function POST(incoming: Request) {
   if (restaurants === null) {
     restaurants = SAMPLE_RESTAURANTS
       .filter((restaurant) => restaurant.distanceKm !== null && restaurant.distanceKm <= radiusKm)
-      .filter((restaurant) => restaurant.priceLevel <= (request.budget ?? 4))
-      .map((restaurant) => ({
-        ...restaurant,
-        score: localScore(restaurant, request),
-        why: buildWhy(restaurant, request),
-      }));
+      .filter((restaurant) => restaurant.priceLevel <= (request.budget ?? 4));
     if (!request.location) {
       notices.push("Share your location to search live restaurants nearby.");
     }
   }
+
+  restaurants = restaurants.map((restaurant) => ({
+    ...restaurant,
+    score: localScore(restaurant, request),
+  }));
 
   let scoring: "jev" | "local" = "local";
   try {
