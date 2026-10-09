@@ -8,6 +8,7 @@ function safeUrl(value: unknown, base?: string) {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
     const url = new URL(value, base);
+    if (url.protocol === "http:") url.protocol = "https:";
     return url.protocol === "https:" && !url.username && !url.password ? url : null;
   } catch {
     return null;
@@ -115,6 +116,9 @@ export function readMenuPhoto(html: string, pageUrl: string) {
     if (!menuUrl && typeof node.hasMenu === "string" && /^(https:\/\/|\/)/i.test(node.hasMenu)) {
       menuUrl = safeUrl(node.hasMenu, pageUrl);
     }
+    if (!menuUrl && types.includes("Menu") && typeof node.url === "string") {
+      menuUrl = safeUrl(node.url, pageUrl);
+    }
     Object.values(node).forEach(visit);
   }
 
@@ -129,7 +133,7 @@ export function readMenuPhoto(html: string, pageUrl: string) {
   }
   if (!photo && !menuUrl) {
     for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi)) {
-      if (/\bmenu\b/i.test(match[1])) {
+      if (/\bmenus?\b/i.test(match[1])) {
         menuUrl = safeUrl(match[1], pageUrl);
         if (menuUrl) break;
       }
