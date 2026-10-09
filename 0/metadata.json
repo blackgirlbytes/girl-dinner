@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4HAPYTKJHK3WWDJG8795839",
+  "session_id": "01a122a5-f490-7583-b3c3-eb7ffc1389f4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-09T21:57:06.413375Z",
+  "branch": "codex/menu-card-images",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/restaurant-photo.tsx"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-sol",
+  "turn_id": "39abd67d29bf",
+  "checkpoint_transcript_start": 253,
+  "transcript_lines_at_start": 253,
+  "compact_transcript_start": 29,
+  "token_usage": {
+    "input_tokens": 2069,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 192256,
+    "output_tokens": 1350,
+    "api_call_count": 2
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-09T21:57:06.394239Z",
+    "agent_lines": 35,
+    "agent_removed": 18,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "total_lines_changed": 53,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
