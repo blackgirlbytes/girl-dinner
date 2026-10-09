@@ -1,0 +1,13 @@
+open up a trail..on a new branch and the trail should say make the background be blue
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 1 tab.
+- Current URL: https://entire.io/gh/blackgirlbytes/girl-dinner/trails/1
+</in-app-browser-context>
+
+## My request:
+work on this trail
