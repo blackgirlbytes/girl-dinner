@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4H7AS1PQBX9X13FNGY1NHRW",
+  "session_id": "01a12272-95b0-7352-9583-19964f52562d",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-09T20:58:01.381921Z",
+  "branch": "codex/blue-background",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/layout.tsx"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-sol",
+  "turn_id": "b44040e86f0c",
+  "checkpoint_transcript_start": 118,
+  "transcript_lines_at_start": 118,
+  "compact_transcript_start": 14,
+  "token_usage": {
+    "input_tokens": 3911,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 202624,
+    "output_tokens": 376,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-09T20:58:01.371635Z",
+    "agent_lines": 1,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "total_lines_changed": 2,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
