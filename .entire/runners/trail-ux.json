@@ -1,0 +1,34 @@
+{
+  "id": "trail-ux",
+  "display_name": "UX and Accessibility Risk",
+  "enabled": true,
+  "scope": "trail",
+  "runtime": {
+    "kind": "prompt_runner",
+    "agent": "claude",
+    "timeout_ms": 300000,
+    "sandbox": {
+      "base_template": "claude",
+      "repo_token": "read"
+    }
+  },
+  "automation": {
+    "kind": "trail_prompt"
+  },
+  "prompt": {
+    "template": "Evaluate user-experience and accessibility regression risk in the changes on {{branch}} against {{base_branch}}. Read `git diff origin/{{base_branch}}...HEAD` and relevant UI code and styles. If no user-visible behavior changes, score near zero. For changed behavior, follow the actual Girl Dinner journey: three-step setup, the prominent swipe card at phone and desktop widths, keyboard and touch equivalents for pass/interested/love, invite and room joining on separate phones, waiting and reconnect states, result and at-home fallback screens, restaurant photo attribution, and clear loading, empty and error feedback. Check readable text and contrast, labels and focus order, button targets, state announcements and whether dietary uncertainty stays visible. Give extra weight to a path that prevents someone from completing a dinner decision. Do not penalize visual differences merely because they are new; identify a reproducible or strongly supported failure.\n\nScore UX risk from 0 to 100: 0-10 means no meaningful regression, 20-40 means a small usability issue, 50-70 means a material flow or accessibility gap, and 80-100 means a core flow is unusable for a group of users. Name the changed screen or control and evidence in the rationale. Do not claim browser testing occurred unless it actually did.\n\nOutput ONLY this JSON object as the final line: {\"value\": <number 0-100>, \"rationale\": \"<1-2 evidence-based sentences>\"}"
+  },
+  "select": {
+    "trigger_types": ["api", "push"]
+  },
+  "output": {
+    "adapter": "last_json_line",
+    "result_type": "trail_monitor",
+    "trail_monitor": {
+      "key": "ux",
+      "label": "UX Risk",
+      "value_type": "percent",
+      "polarity": "lower_is_better"
+    }
+  }
+}
