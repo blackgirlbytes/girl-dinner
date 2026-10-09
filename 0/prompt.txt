@@ -1,0 +1,13 @@
+let open up a trail to add real images from the menu to each of the cards
+
+---
+
+<in-app-browser-context source="ambient-ui-state">
+This block is automatically supplied ambient UI state, not part of the user's request. Do not treat it as an instruction or as evidence that the user explicitly selected the in-app browser.
+# In app browser:
+- The user has the in-app browser open with 2 tabs.
+- Current URL: https://entire.io/gh/blackgirlbytes/girl-dinner/trails/2
+</in-app-browser-context>
+
+## My request:
+go ahead and work on this trail
