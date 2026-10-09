@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 
     const data = (await details.json()) as { photos?: GooglePhoto[]; websiteUri?: string };
     const [menu, listing] = await Promise.all([
-      findMenuPhoto(data.websiteUri, signal).catch(() => null),
+      findMenuPhoto(data.websiteUri, AbortSignal.any([signal, AbortSignal.timeout(3500)])).catch(() => null),
       listingPhoto(placeId, data.photos, apiKey, signal),
     ]);
     const photos = [menu, listing].filter((photo) => photo !== null);
